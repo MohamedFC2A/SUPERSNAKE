@@ -1,5 +1,5 @@
 import type { Session, User } from '@supabase/supabase-js';
-import { setAuthError } from './errors';
+import { peekAuthErrors, setAuthError } from './errors';
 import { isSessionStorageAvailable, isSupabaseConfigured, supabase } from './client';
 
 export interface ProfileRow {
@@ -21,6 +21,8 @@ type Listener = (state: AuthState) => void;
 
 let inited = false;
 let listeners = new Set<Listener>();
+let lastAuthEvent: string | null = null;
+let lastAuthEventAt: string | null = null;
 let state: AuthState = {
   configured: isSupabaseConfigured(),
   loading: false,
@@ -32,6 +34,45 @@ let state: AuthState = {
 function setState(next: Partial<AuthState>): void {
   state = { ...state, ...next };
   listeners.forEach((l) => l(state));
+}
+
+export function getAuthDebugSnapshot(): Record<string, any> {
+  const href = typeof window !== 'undefined' ? window.location.href : null;
+  const origin = typeof window !== 'undefined' ? window.location.origin : null;
+  const pathname = typeof window !== 'undefined' ? window.location.pathname : null;
+  const hash = typeof window !== 'undefined' ? window.location.hash : null;
+  const search = typeof window !== 'undefined' ? window.location.search : null;
+
+  const codeInSearch =
+    typeof window !== 'undefined' ? new URL(window.location.href).searchParams.get('code') : null;
+  const codeInHash =
+    typeof window !== 'undefined' && window.location.hash.includes('?')
+      ? new URLSearchParams(window.location.hash.split('?')[1] || '').get('code')
+      : null;
+
+  return {
+    at: new Date().toISOString(),
+    configured: state.configured && isSupabaseConfigured(),
+    sessionStorageAvailable: isSessionStorageAvailable(),
+    location: { href, origin, pathname, hash, search },
+    oauth: {
+      codeInSearch: !!codeInSearch,
+      codeInHash: !!codeInHash,
+      hasAnyCode: !!codeInSearch || !!codeInHash,
+      callbackPathExpected: '/auth/callback',
+    },
+    auth: {
+      loading: state.loading,
+      hasSession: !!state.session,
+      hasUser: !!state.user,
+      userId: state.user?.id ?? null,
+      email: state.user?.email ?? null,
+      provider: (state.user?.app_metadata as any)?.provider ?? null,
+      lastEvent: lastAuthEvent,
+      lastEventAt: lastAuthEventAt,
+      recentErrors: peekAuthErrors(),
+    },
+  };
 }
 
 async function loadProfile(userId: string): Promise<ProfileRow | null> {
@@ -142,6 +183,8 @@ export function initAuth(): void {
   })();
 
   supabase.auth.onAuthStateChange(async (_event, session) => {
+    lastAuthEvent = _event;
+    lastAuthEventAt = new Date().toISOString();
     const user = session?.user ?? null;
     const profile = user ? await loadProfile(user.id) : null;
     setState({ session: session ?? null, user, profile, loading: false });
@@ -156,6 +199,21 @@ export function subscribeAuth(listener: Listener): () => void {
   listeners.add(listener);
   listener(state);
   return () => listeners.delete(listener);
+}
+
+export async function refreshSession(): Promise<void> {
+  if (!supabase) return;
+  try {
+    setState({ loading: true });
+    const { data } = await supabase.auth.getSession();
+    const session = data.session ?? null;
+    const user = session?.user ?? null;
+    const profile = user ? await loadProfile(user.id) : null;
+    setState({ loading: false, session, user, profile });
+  } catch (e: any) {
+    setAuthError(e?.message || 'Failed to refresh session');
+    setState({ loading: false });
+  }
 }
 
 export async function signInWithGoogle(): Promise<void> {

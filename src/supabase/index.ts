@@ -2,7 +2,9 @@ export { supabase, isSupabaseConfigured, isSessionStorageAvailable } from './cli
 export {
   initAuth,
   getAuthState,
+  getAuthDebugSnapshot,
   subscribeAuth,
+  refreshSession,
   signInWithGoogle,
   signOut,
   updateUsername,
@@ -10,4 +12,4 @@ export {
   type ProfileRow,
 } from './auth';
 export { fetchLeaderboard, fetchMyBestScore, submitScore, type LeaderboardEntry } from './leaderboards';
-export { setAuthError, takeAuthError } from './errors';
+export { setAuthError, takeAuthError, peekAuthErrors } from './errors';

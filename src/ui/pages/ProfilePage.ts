@@ -2,8 +2,11 @@ import { t, onLocaleChange } from '../../i18n';
 import { getStatsManager, StatsManager } from '../../game/StatsManager';
 import {
     fetchMyBestScore,
+    getAuthDebugSnapshot,
     getAuthState,
     isSupabaseConfigured,
+    isSessionStorageAvailable,
+    refreshSession,
     signInWithGoogle,
     signOut,
     subscribeAuth,
@@ -23,6 +26,7 @@ export class ProfilePage {
     private cloudBestScore: number | null = null;
     private cloudLoading: boolean = false;
     private authError: string | null = null;
+    private debugExpanded: boolean = false;
 
     constructor() {
         this.container = document.createElement('div');
@@ -76,6 +80,8 @@ export class ProfilePage {
         const configured = auth.configured && isSupabaseConfigured();
         const user = auth.user;
         const profile = auth.profile;
+        const storageOk = isSessionStorageAvailable();
+        const debugSnapshot = getAuthDebugSnapshot();
         const cloudName =
             profile?.username ||
             (user?.user_metadata?.full_name as string | undefined) ||
@@ -105,6 +111,16 @@ export class ProfilePage {
                     </div>
                 ` : ''}
 
+                ${configured && !storageOk ? `
+                    <div class="panel panel-warning">
+                        <div class="panel-title">${t('profile.signInErrorTitle')}</div>
+                        <div class="panel-text">
+                            Session storage is blocked in this browser/context. Google sign-in cannot finish (PKCE needs temporary storage).
+                            Disable private mode / strict tracking protection for this site, then try again.
+                        </div>
+                    </div>
+                ` : ''}
+
                 ${!configured ? `
                     <div class="profile-warning">
                         <span class="warning-icon">ℹ️</span>
@@ -119,6 +135,25 @@ export class ProfilePage {
                             <div class="profile-cloud-meta">${t('profile.cloudSignInHint')}</div>
                         </div>
                         <button class="btn btn-primary" id="googleSignInBtn" type="button">${t('profile.signInGoogle')}</button>
+                    </div>
+                ` : ''}
+
+                ${configured && !user ? `
+                    <div class="panel">
+                        <div class="panel-title">Auth Debug</div>
+                        <div class="panel-text">
+                            If sign-in says “signed out” after returning from Google, copy this report and send it here.
+                        </div>
+                        <div class="panel-actions">
+                            <button class="btn btn-secondary btn-small" id="toggleAuthDebugBtn" type="button">
+                                ${this.debugExpanded ? 'Hide' : 'Show'}
+                            </button>
+                            <button class="btn btn-secondary btn-small" id="copyAuthDebugBtn" type="button">Copy</button>
+                            <button class="btn btn-secondary btn-small" id="forceRefreshSessionBtn" type="button">Refresh session</button>
+                        </div>
+                        ${this.debugExpanded ? `
+                            <pre class="code-block" style="white-space: pre-wrap; word-break: break-word; max-height: 260px; overflow: auto;">${this.escapeHtml(JSON.stringify(debugSnapshot, null, 2))}</pre>
+                        ` : ''}
                     </div>
                 ` : ''}
 
@@ -226,6 +261,45 @@ export class ProfilePage {
         const dismissBtn = this.container.querySelector('#dismissAuthErrorBtn');
         dismissBtn?.addEventListener('click', () => {
             this.authError = null;
+            this.updateContent();
+        });
+
+        const toggleDebugBtn = this.container.querySelector('#toggleAuthDebugBtn');
+        toggleDebugBtn?.addEventListener('click', () => {
+            this.debugExpanded = !this.debugExpanded;
+            this.updateContent();
+        });
+
+        const copyBtn = this.container.querySelector('#copyAuthDebugBtn');
+        copyBtn?.addEventListener('click', async () => {
+            const report = JSON.stringify(getAuthDebugSnapshot(), null, 2);
+            try {
+                await navigator.clipboard.writeText(report);
+                this.authError = 'Copied debug report to clipboard.';
+            } catch {
+                // Fallback
+                try {
+                    const ta = document.createElement('textarea');
+                    ta.value = report;
+                    ta.style.position = 'fixed';
+                    ta.style.left = '-9999px';
+                    document.body.appendChild(ta);
+                    ta.focus();
+                    ta.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(ta);
+                    this.authError = 'Copied debug report to clipboard.';
+                } catch {
+                    this.authError = 'Failed to copy debug report.';
+                }
+            }
+            this.updateContent();
+        });
+
+        const refreshBtn = this.container.querySelector('#forceRefreshSessionBtn');
+        refreshBtn?.addEventListener('click', async () => {
+            await refreshSession();
+            this.authError = takeAuthError() || `Session refresh attempted at ${new Date().toLocaleTimeString()}`;
             this.updateContent();
         });
     }
