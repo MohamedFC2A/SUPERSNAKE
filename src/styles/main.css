@@ -2171,6 +2171,12 @@ select:focus-visible {
   background: rgba(245, 158, 11, 0.08);
 }
 
+.panel-actions {
+  margin-top: var(--space-m);
+  display: flex;
+  justify-content: flex-end;
+}
+
 .profile-card {
   display: flex;
   align-items: center;

@@ -41,6 +41,8 @@
         "cloudSignInHint": "Sign in with Google to sync your best score",
         "signInGoogle": "Sign in with Google",
         "signOut": "Sign out",
+        "signInErrorTitle": "Sign-in error",
+        "dismiss": "Dismiss",
         "username": "Username",
         "save": "Save",
         "cloudBest": "Best Score (Online)",

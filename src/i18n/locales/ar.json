@@ -41,6 +41,8 @@
         "cloudSignInHint": "سجّل الدخول بجوجل لمزامنة أفضل نتيجة لك",
         "signInGoogle": "تسجيل الدخول بجوجل",
         "signOut": "تسجيل الخروج",
+        "signInErrorTitle": "خطأ في تسجيل الدخول",
+        "dismiss": "إغلاق",
         "username": "اسم المستخدم",
         "save": "حفظ",
         "cloudBest": "أفضل نتيجة (أونلاين)",

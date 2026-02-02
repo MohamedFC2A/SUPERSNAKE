@@ -10,4 +10,4 @@ export {
   type ProfileRow,
 } from './auth';
 export { fetchLeaderboard, fetchMyBestScore, submitScore, type LeaderboardEntry } from './leaderboards';
-
+export { setAuthError, takeAuthError } from './errors';

@@ -81,10 +81,6 @@ export class PlayPage {
         // Get saved player name
         const savedName = localStorage.getItem('snake01.playerName') || '';
         const mobile = isMobileLike();
-        const installed = isStandaloneMode();
-        const desktopBlocked = !import.meta.env.DEV && !mobile;
-        const installRequired = mobile && !installed;
-        const startDisabled = desktopBlocked || installRequired;
 
         this.container.innerHTML = `
             <div class="play-start-screen">
@@ -92,23 +88,14 @@ export class PlayPage {
                     <h1 class="play-start-title">🐍 ${t('menu.title')}</h1>
                     <p class="play-start-subtitle">${t('menu.tagline')}</p>
 
-                    ${desktopBlocked ? `
+                    ${mobile ? `
                         <div class="install-required-card">
-                            <div class="install-required-title">Mobile only</div>
+                            <div class="install-required-title">Install (optional)</div>
                             <div class="install-required-text">
-                                This game is designed for mobile. Please open it on your phone.
-                            </div>
-                        </div>
-                    ` : ''}
-
-                    ${installRequired ? `
-                        <div class="install-required-card">
-                            <div class="install-required-title">Install required</div>
-                            <div class="install-required-text">
-                                To play on mobile, you must install the game from your browser first.
+                                For the best mobile experience, you can install the game to your home screen.
                             </div>
                             <button class="btn btn-primary" id="openInstallGateBtn" type="button">
-                                Install & Continue
+                                Install
                             </button>
                             <div class="install-required-hint">
                                 iPhone/iPad: Share → Add to Home Screen
@@ -127,7 +114,7 @@ export class PlayPage {
                                autocomplete="off">
                     </div>
                     
-                    <button class="btn btn-primary play-start-btn" id="startGameBtn" ${startDisabled ? 'disabled aria-disabled="true"' : ''}>
+                    <button class="btn btn-primary play-start-btn" id="startGameBtn">
                         ${t('menu.play')}
                     </button>
                     
@@ -184,20 +171,6 @@ export class PlayPage {
      */
     private startGame(playerName: string): void {
         if (this.isGameRunning || this.isDestroyed) return;
-
-        // Production: block desktop usage (mobile-only experience)
-        if (!import.meta.env.DEV && !isMobileLike()) {
-            this.installOverlayVisible = false;
-            this.showStartScreen();
-            return;
-        }
-
-        // Mobile-only requirement: must be installed (standalone)
-        if (isMobileLike() && !isStandaloneMode()) {
-            this.installOverlayVisible = true;
-            this.showStartScreen();
-            return;
-        }
 
         console.log('[PlayPage] Starting game for:', playerName);
 
@@ -449,12 +422,12 @@ export class PlayPage {
     private renderInstallOverlay(): string {
         const hasPrompt = !!getDeferredInstallPrompt();
         return `
-            <div class="install-overlay" role="dialog" aria-modal="true" aria-label="Install required">
+            <div class="install-overlay" role="dialog" aria-modal="true" aria-label="Install">
                 <div class="install-card">
                     <div class="install-icon" aria-hidden="true">⬇️📱</div>
-                    <div class="install-title">Install required</div>
+                    <div class="install-title">Install (optional)</div>
                     <div class="install-text">
-                        This game runs on mobile only after you install it from your browser.
+                        Install for faster loading, full-screen play, and a better mobile experience.
                     </div>
 
                     <div class="install-steps">
@@ -464,7 +437,7 @@ export class PlayPage {
 
                     <div class="install-actions">
                         <button class="btn btn-primary" id="installNowBtn" type="button" ${hasPrompt ? '' : 'disabled aria-disabled="true"'}>Install</button>
-                        <button class="btn btn-secondary" id="installCheckBtn" type="button">I installed, continue</button>
+                        <button class="btn btn-secondary" id="installCheckBtn" type="button">Done</button>
                     </div>
 
                     <button class="install-close" id="installCloseBtn" type="button" aria-label="Close">×</button>
@@ -483,13 +456,8 @@ export class PlayPage {
 
         const installCheckBtn = this.container.querySelector('#installCheckBtn');
         installCheckBtn?.addEventListener('click', () => {
-            if (isStandaloneMode()) {
-                this.installOverlayVisible = false;
-                this.showStartScreen();
-            } else {
-                // Keep overlay open; user still not in standalone.
-                this.showStartScreen();
-            }
+            this.installOverlayVisible = false;
+            this.showStartScreen();
         });
 
         const installCloseBtn = this.container.querySelector('#installCloseBtn');

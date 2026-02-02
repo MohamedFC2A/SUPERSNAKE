@@ -1,4 +1,5 @@
 import type { Session, User } from '@supabase/supabase-js';
+import { setAuthError } from './errors';
 import { isSupabaseConfigured, supabase } from './client';
 
 export interface ProfileRow {
@@ -57,6 +58,7 @@ async function handleOAuthCallbackIfPresent(): Promise<void> {
 
   // If an OAuth error is present, clear URL params so the app doesn't get stuck.
   if (error || errorDescription) {
+    setAuthError((errorDescription || error || 'Sign-in failed').toString());
     url.search = '';
     window.history.replaceState({}, '', url.toString());
     return;
@@ -69,11 +71,15 @@ async function handleOAuthCallbackIfPresent(): Promise<void> {
   try {
     setState({ loading: true });
     const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+    if (exchangeError) {
+      setAuthError(exchangeError.message || 'Sign-in failed');
+    }
     const session = data.session ?? null;
     const user = session?.user ?? null;
     const profile = user ? await loadProfile(user.id) : null;
     setState({ loading: false, session, user, profile });
   } catch {
+    setAuthError('Sign-in failed (session exchange)');
     setState({ loading: false });
   } finally {
     // Remove code param from URL
@@ -132,13 +138,16 @@ export function subscribeAuth(listener: Listener): () => void {
 
 export async function signInWithGoogle(): Promise<void> {
   if (!supabase) return;
-  await supabase.auth.signInWithOAuth({
+  const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
       // Important: no hash routing here, so the OAuth `code` lands in `location.search`.
       redirectTo: `${window.location.origin}/auth/callback`,
     },
   });
+  if (error) {
+    setAuthError(error.message || 'Sign-in failed');
+  }
 }
 
 export async function signOut(): Promise<void> {

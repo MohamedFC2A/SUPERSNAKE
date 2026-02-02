@@ -7,6 +7,7 @@ import {
     signInWithGoogle,
     signOut,
     subscribeAuth,
+    takeAuthError,
     updateUsername,
 } from '../../supabase';
 
@@ -21,10 +22,12 @@ export class ProfilePage {
 
     private cloudBestScore: number | null = null;
     private cloudLoading: boolean = false;
+    private authError: string | null = null;
 
     constructor() {
         this.container = document.createElement('div');
         this.container.className = 'page profile-page';
+        this.authError = takeAuthError();
         this.updateContent();
 
         this.unsubscribeLocale = onLocaleChange(() => {
@@ -36,6 +39,7 @@ export class ProfilePage {
         });
 
         this.unsubscribeAuth = subscribeAuth(() => {
+            this.authError = takeAuthError() || this.authError;
             const auth = getAuthState();
             if (auth.user) {
                 void this.loadCloudStats();
@@ -90,6 +94,16 @@ export class ProfilePage {
                     <h2 class="section-title">${t('profile.cloudTitle')}</h2>
                     <div class="section-subtitle">${t('profile.cloudSubtitle')}</div>
                 </div>
+
+                ${this.authError ? `
+                    <div class="panel panel-warning">
+                        <div class="panel-title">${t('profile.signInErrorTitle')}</div>
+                        <div class="panel-text">${this.escapeHtml(this.authError)}</div>
+                        <div class="panel-actions">
+                            <button class="btn btn-secondary btn-small" id="dismissAuthErrorBtn" type="button">${t('profile.dismiss')}</button>
+                        </div>
+                    </div>
+                ` : ''}
 
                 ${!configured ? `
                     <div class="profile-warning">
@@ -207,6 +221,12 @@ export class ProfilePage {
         saveBtn?.addEventListener('click', () => {
             const value = usernameInput?.value ?? '';
             void updateUsername(value);
+        });
+
+        const dismissBtn = this.container.querySelector('#dismissAuthErrorBtn');
+        dismissBtn?.addEventListener('click', () => {
+            this.authError = null;
+            this.updateContent();
         });
     }
 
