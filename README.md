@@ -78,7 +78,7 @@ In Supabase Dashboard → Authentication → Providers:
 
 - Enable `Google`
 - Add redirect URLs:
-  - `https://YOUR_DOMAIN/#/profile`
+  - `https://YOUR_DOMAIN/auth/callback`
 
 ### 3) Add Vercel env vars
 
@@ -86,4 +86,3 @@ In Vercel Project → Settings → Environment Variables:
 
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
-

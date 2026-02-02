@@ -46,6 +46,47 @@ async function loadProfile(userId: string): Promise<ProfileRow | null> {
   return data as ProfileRow | null;
 }
 
+async function handleOAuthCallbackIfPresent(): Promise<void> {
+  if (!supabase) return;
+
+  const url = new URL(window.location.href);
+  const params = url.searchParams;
+  const code = params.get('code');
+  const error = params.get('error');
+  const errorDescription = params.get('error_description');
+
+  // If an OAuth error is present, clear URL params so the app doesn't get stuck.
+  if (error || errorDescription) {
+    url.search = '';
+    window.history.replaceState({}, '', url.toString());
+    return;
+  }
+
+  // With hash routing, we must NOT use a redirect that includes "#/...",
+  // otherwise the code ends up after the hash and becomes invisible to `location.search`.
+  if (!code) return;
+
+  try {
+    setState({ loading: true });
+    const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+    const session = data.session ?? null;
+    const user = session?.user ?? null;
+    const profile = user ? await loadProfile(user.id) : null;
+    setState({ loading: false, session, user, profile });
+  } catch {
+    setState({ loading: false });
+  } finally {
+    // Remove code param from URL
+    url.search = '';
+    window.history.replaceState({}, '', url.toString());
+
+    // If we used a dedicated callback URL, route the user into the SPA profile page.
+    if (window.location.pathname.endsWith('/auth/callback')) {
+      window.location.replace('/#/profile');
+    }
+  }
+}
+
 export function initAuth(): void {
   if (inited) return;
   inited = true;
@@ -57,17 +98,20 @@ export function initAuth(): void {
 
   setState({ configured: true, loading: true });
 
-  supabase.auth
-    .getSession()
-    .then(async ({ data }) => {
+  void (async () => {
+    // Handle OAuth redirect (PKCE) before reading session.
+    await handleOAuthCallbackIfPresent();
+
+    try {
+      const { data } = await supabase.auth.getSession();
       const session = data.session ?? null;
       const user = session?.user ?? null;
       const profile = user ? await loadProfile(user.id) : null;
       setState({ loading: false, session, user, profile });
-    })
-    .catch(() => {
+    } catch {
       setState({ loading: false });
-    });
+    }
+  })();
 
   supabase.auth.onAuthStateChange(async (_event, session) => {
     const user = session?.user ?? null;
@@ -91,7 +135,8 @@ export async function signInWithGoogle(): Promise<void> {
   await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: `${window.location.origin}/#/profile`,
+      // Important: no hash routing here, so the OAuth `code` lands in `location.search`.
+      redirectTo: `${window.location.origin}/auth/callback`,
     },
   });
 }
@@ -113,4 +158,3 @@ export async function updateUsername(username: string): Promise<void> {
   const profile = await loadProfile(user.id);
   setState({ profile });
 }
-
