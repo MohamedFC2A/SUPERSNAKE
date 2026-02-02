@@ -1,4 +1,4 @@
-export { supabase, isSupabaseConfigured } from './client';
+export { supabase, isSupabaseConfigured, isSessionStorageAvailable } from './client';
 export {
   initAuth,
   getAuthState,

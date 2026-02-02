@@ -12,6 +12,10 @@ function getSessionStorageOrNull(): Storage | null {
   }
 }
 
+export function isSessionStorageAvailable(): boolean {
+  return getSessionStorageOrNull() !== null;
+}
+
 export const supabase: SupabaseClient | null =
   url && anonKey
     ? createClient(url, anonKey, {

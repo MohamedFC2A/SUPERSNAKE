@@ -1,6 +1,6 @@
 import type { Session, User } from '@supabase/supabase-js';
 import { setAuthError } from './errors';
-import { isSupabaseConfigured, supabase } from './client';
+import { isSessionStorageAvailable, isSupabaseConfigured, supabase } from './client';
 
 export interface ProfileRow {
   id: string;
@@ -160,6 +160,12 @@ export function subscribeAuth(listener: Listener): () => void {
 
 export async function signInWithGoogle(): Promise<void> {
   if (!supabase) return;
+  if (!isSessionStorageAvailable()) {
+    setAuthError(
+      'Your browser blocked session storage. Google sign-in cannot complete in private mode or with strict storage blocking.'
+    );
+    return;
+  }
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
