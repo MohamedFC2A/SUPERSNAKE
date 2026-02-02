@@ -95,21 +95,31 @@ export default async function handler(req, res) {
 
   let content = null;
   try {
-    const dsRes = await fetch(`${baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${deepseekKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model,
-        temperature: 0.2,
-        messages: [
-          { role: 'system', content: system },
-          { role: 'user', content: user },
-        ],
-      }),
-    });
+    const endpointV1 = `${baseUrl.replace(/\/$/, '')}/v1/chat/completions`;
+    const endpointLegacy = `${baseUrl.replace(/\/$/, '')}/chat/completions`;
+
+    const callDeepSeek = async (endpoint) =>
+      fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${deepseekKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model,
+          temperature: 0.2,
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: user },
+          ],
+        }),
+      });
+
+    let dsRes = await callDeepSeek(endpointV1);
+    if (dsRes.status === 404) {
+      // Fallback for providers that don't use /v1
+      dsRes = await callDeepSeek(endpointLegacy);
+    }
 
     const text = await dsRes.text();
     if (!dsRes.ok) {
@@ -141,4 +151,3 @@ export default async function handler(req, res) {
     return json(res, 500, { error: 'Server error', detail: e?.message || String(e) });
   }
 }
-

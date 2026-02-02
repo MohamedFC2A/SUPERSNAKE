@@ -333,8 +333,9 @@ export class ChangelogPage {
             this.render();
         });
 
-        this.container.querySelector('#aiFillBtn')?.addEventListener('click', () => {
-            void this.handleAiFill();
+        this.container.querySelector('#aiFillBtn')?.addEventListener('click', (e) => {
+            const overwrite = (e as MouseEvent).shiftKey === true;
+            void this.handleAiFill(overwrite);
         });
 
         const form = this.container.querySelector('#changelogEditorForm') as HTMLFormElement | null;
@@ -369,7 +370,7 @@ export class ChangelogPage {
         textarea.value = (text || '').toString();
     }
 
-    private async handleAiFill(): Promise<void> {
+    private async handleAiFill(overwrite: boolean): Promise<void> {
         const auth = getAuthState();
         if (!auth.user || !auth.session?.access_token) {
             this.formError = 'Sign in first.';
@@ -407,7 +408,7 @@ export class ChangelogPage {
                 return;
             }
 
-            const onlyIfEmpty = true;
+            const onlyIfEmpty = !overwrite;
             this.setText('#entryDescription', data?.description, onlyIfEmpty);
             this.setLines('#entryAdded', data?.added, onlyIfEmpty);
             this.setLines('#entryChanged', data?.changed, onlyIfEmpty);
