@@ -1,5 +1,6 @@
 import { Vector2, Random } from '../../utils/utils';
 import { Config, SnakePalette } from '../../config';
+import type { RenderOptions } from '../render/RenderOptions';
 
 export interface SnakeSegment {
     position: Vector2;
@@ -254,8 +255,9 @@ export class Snake {
     /**
      * Render the snake
      */
-    public render(ctx: CanvasRenderingContext2D): void {
+    public render(ctx: CanvasRenderingContext2D, options?: RenderOptions): void {
         if (!this.isAlive) return;
+        const glowEnabled = options?.glowEnabled === true;
 
         // Draw segments from tail to head
         for (let i = this.segments.length - 1; i >= 0; i--) {
@@ -267,8 +269,12 @@ export class Snake {
 
             // Add glow to head
             if (i === 0) {
-                ctx.shadowBlur = 20;
-                ctx.shadowColor = this.palette.primary;
+                if (glowEnabled) {
+                    ctx.shadowBlur = 18;
+                    ctx.shadowColor = this.palette.primary;
+                } else {
+                    ctx.shadowBlur = 0;
+                }
             }
 
             ctx.beginPath();

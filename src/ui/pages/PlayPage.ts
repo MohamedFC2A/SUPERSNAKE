@@ -11,6 +11,7 @@ import { MiniMap } from '../../ui/hud/MiniMap';
 import { Config } from '../../config';
 import { Vector2 } from '../../utils/utils';
 import { getDeferredInstallPrompt, isMobileLike, isStandaloneMode, promptInstallIfAvailable } from '../../pwa/install';
+import { submitScore } from '../../supabase';
 
 /**
  * PlayPage - Hosts the game canvas and controls
@@ -27,6 +28,7 @@ export class PlayPage {
     private settingsManager: SettingsManager;
     private canvas: HTMLCanvasElement | null = null;
     private unsubscribeLocale: (() => void) | null = null;
+    private unsubscribeSettings: (() => void) | null = null;
     private gameStartTime: number = 0;
     private isGameRunning: boolean = false;
     private isDestroyed: boolean = false;
@@ -223,6 +225,26 @@ export class PlayPage {
         console.log('[PlayPage] Creating game instance...');
         this.game = new Game(this.canvas);
 
+        // Apply settings (graphics quality / particles / grid) immediately and keep in sync
+        this.game.applySettings(this.settingsManager.getSettings());
+        this.unsubscribeSettings?.();
+        this.unsubscribeSettings = this.settingsManager.subscribe((newSettings) => {
+            this.game?.applySettings(newSettings);
+
+            // Live-update mobile control layout
+            if (this.joystick) {
+                this.joystick.updateConfig({
+                    size: newSettings.controls.joystickSize,
+                    position: newSettings.controls.joystickPosition,
+                });
+            }
+            if (this.boostButton) {
+                this.boostButton.updateConfig({
+                    position: newSettings.controls.joystickPosition === 'left' ? 'right' : 'left',
+                });
+            }
+        });
+
         // Initialize HUD
         this.initHUD();
 
@@ -269,8 +291,14 @@ export class PlayPage {
 
     private resizeCanvas(): void {
         if (!this.canvas) return;
-        this.canvas.width = window.innerWidth;
-        this.canvas.height = window.innerHeight;
+
+        // Renderer manages DPI scaling; we only notify the game of logical size changes.
+        if (this.game) {
+            this.game.resize(window.innerWidth, window.innerHeight);
+        } else {
+            this.canvas.style.width = `${window.innerWidth}px`;
+            this.canvas.style.height = `${window.innerHeight}px`;
+        }
     }
 
     private initHUD(): void {
@@ -659,6 +687,9 @@ export class PlayPage {
         // Record stats
         getStatsManager().recordGameEnd(score, survivalTime);
 
+        // Cloud leaderboard (optional)
+        void submitScore(score, this.game.getPlayerName());
+
         // Play death sound
         getAudioManager().play('death');
 
@@ -732,6 +763,8 @@ export class PlayPage {
      */
     cleanup(): void {
         console.log('[PlayPage] Cleaning up...');
+        this.unsubscribeSettings?.();
+        this.unsubscribeSettings = null;
 
         // Stop update loop
         if (this.updateLoopId) {
@@ -751,6 +784,7 @@ export class PlayPage {
             if (player) {
                 const survivalTime = Date.now() - this.gameStartTime;
                 getStatsManager().recordGameEnd(player.score, survivalTime);
+                void submitScore(player.score, this.game.getPlayerName());
             }
         }
 
@@ -773,6 +807,8 @@ export class PlayPage {
         console.log('[PlayPage] Destroying...');
         this.isDestroyed = true;
         this.unsubscribeLocale?.();
+        this.unsubscribeSettings?.();
+        this.unsubscribeSettings = null;
         this.cleanup();
     }
 }

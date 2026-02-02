@@ -1,5 +1,6 @@
 import { Vector2, Random } from '../../utils/utils';
 import { Config } from '../../config';
+import type { RenderOptions } from '../render/RenderOptions';
 
 export type FoodType = 'normal' | 'rare' | 'power' | 'speed_boost';
 
@@ -77,12 +78,17 @@ export class Food {
     /**
      * Render the food item
      */
-    public render(ctx: CanvasRenderingContext2D): void {
+    public render(ctx: CanvasRenderingContext2D, options?: RenderOptions): void {
         if (this.isConsumed) return;
+        const glowEnabled = options?.glowEnabled === true;
 
-        // Outer glow
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = this.color;
+        // Outer glow (optional; disabled for clean/crisp mode)
+        if (glowEnabled) {
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = this.color;
+        } else {
+            ctx.shadowBlur = 0;
+        }
 
         // Draw main circle
         ctx.fillStyle = this.color;
@@ -112,12 +118,17 @@ export class Food {
             ctx.stroke();
         } else if (this.type === 'speed_boost') {
             // Subtle highlight so it reads as special without being obnoxious
-            ctx.shadowColor = this.color;
-            ctx.shadowBlur = 18;
+            if (glowEnabled) {
+                ctx.shadowColor = this.color;
+                ctx.shadowBlur = 12;
+            } else {
+                ctx.shadowBlur = 0;
+            }
             ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
             ctx.beginPath();
             ctx.arc(this.position.x, this.position.y, Math.max(2, this.radius * 0.45), 0, Math.PI * 2);
             ctx.fill();
+            ctx.shadowBlur = 0;
         }
     }
 }
@@ -211,8 +222,8 @@ export class FoodManager {
     /**
      * Render all food
      */
-    public render(ctx: CanvasRenderingContext2D): void {
-        this.foods.forEach(food => food.render(ctx));
+    public render(ctx: CanvasRenderingContext2D, options?: RenderOptions): void {
+        this.foods.forEach(food => food.render(ctx, options));
     }
 
     /**

@@ -6,6 +6,7 @@
     "nav": {
         "home": "Home",
         "play": "Play",
+        "leaderboards": "Leaderboards",
         "changelog": "Changelog",
         "settings": "Settings",
         "profile": "Profile"
@@ -31,6 +32,16 @@
     "profile": {
         "title": "Profile",
         "subtitle": "Your game statistics",
+        "cloudTitle": "Online Profile",
+        "cloudSubtitle": "Sign in to save scores and appear on leaderboards",
+        "cloudNotConfigured": "Online features are not configured yet (Supabase keys missing).",
+        "cloudSignedOut": "Not signed in",
+        "cloudSignInHint": "Sign in with Google to sync your best score",
+        "signInGoogle": "Sign in with Google",
+        "signOut": "Sign out",
+        "username": "Username",
+        "save": "Save",
+        "cloudBest": "Best Score (Online)",
         "localProfile": "Local Profile (this device)",
         "gamesPlayed": "Games Played",
         "bestScore": "Best Score",
@@ -41,6 +52,17 @@
         "memberSince": "Playing Since",
         "lastPlayed": "Last Played",
         "localWarning": "Stats are stored locally on this device only"
+    },
+    "leaderboards": {
+        "title": "Leaderboards",
+        "subtitle": "Top real players by best score",
+        "refresh": "Refresh",
+        "loading": "Loading…",
+        "empty": "No scores yet. Play a game and submit your score!",
+        "player": "Player",
+        "score": "Score",
+        "notConfiguredTitle": "Online leaderboards disabled",
+        "notConfiguredText": "Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to enable online profiles and leaderboards."
     },
     "notFound": {
         "message": "Page Not Found",
@@ -98,6 +120,7 @@
         "low": "Low",
         "medium": "Medium",
         "high": "High",
+        "ultra": "Ultra",
         "particles": "Particle Effects",
         "showGrid": "Show Grid",
         "showMinimap": "Show Minimap",

@@ -7,12 +7,20 @@ export interface Camera {
     targetZoom: number;
 }
 
+export interface RendererResizeOptions {
+    logicalWidth?: number;
+    logicalHeight?: number;
+}
+
 /**
  * Renderer - Canvas 2D rendering system with camera support
  */
 export class Renderer {
     private canvas: HTMLCanvasElement;
     private ctx: CanvasRenderingContext2D;
+    private logicalWidth: number = 0;
+    private logicalHeight: number = 0;
+    private pixelRatio: number = 1;
 
     public camera: Camera = {
         position: new Vector2(Config.WORLD_WIDTH / 2, Config.WORLD_HEIGHT / 2),
@@ -24,21 +32,40 @@ export class Renderer {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d')!;
         this.resize();
-
-        window.addEventListener('resize', () => this.resize());
     }
 
-    private resize(): void {
-        this.canvas.width = window.innerWidth;
-        this.canvas.height = window.innerHeight;
+    public setPixelRatio(pixelRatio: number): void {
+        const next = Math.max(1, Math.min(3, pixelRatio || 1));
+        if (Math.abs(this.pixelRatio - next) < 0.01) return;
+        this.pixelRatio = next;
+        this.resize();
+    }
+
+    public resize(options: RendererResizeOptions = {}): void {
+        const logicalWidth = options.logicalWidth ?? window.innerWidth;
+        const logicalHeight = options.logicalHeight ?? window.innerHeight;
+
+        this.logicalWidth = Math.max(1, Math.floor(logicalWidth));
+        this.logicalHeight = Math.max(1, Math.floor(logicalHeight));
+
+        // Keep CSS size in logical pixels (so the rest of the game can use normal coordinates).
+        this.canvas.style.width = `${this.logicalWidth}px`;
+        this.canvas.style.height = `${this.logicalHeight}px`;
+
+        // Backing store in device pixels for crisp rendering.
+        this.canvas.width = Math.floor(this.logicalWidth * this.pixelRatio);
+        this.canvas.height = Math.floor(this.logicalHeight * this.pixelRatio);
+
+        // Map logical pixels -> backing pixels.
+        this.ctx.setTransform(this.pixelRatio, 0, 0, this.pixelRatio, 0, 0);
     }
 
     public get width(): number {
-        return this.canvas.width;
+        return this.logicalWidth;
     }
 
     public get height(): number {
-        return this.canvas.height;
+        return this.logicalHeight;
     }
 
     public get screenCenter(): Vector2 {
@@ -151,14 +178,12 @@ export class Renderer {
      * Draw world boundary
      */
     public drawBoundary(): void {
-        this.ctx.strokeStyle = Config.COLORS.NEON_MAGENTA;
-        this.ctx.lineWidth = 4;
-        this.ctx.shadowBlur = 20;
-        this.ctx.shadowColor = Config.COLORS.NEON_MAGENTA;
+        // Clean boundary (no heavy glow)
+        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+        this.ctx.lineWidth = 3;
+        this.ctx.shadowBlur = 0;
 
         this.ctx.strokeRect(0, 0, Config.WORLD_WIDTH, Config.WORLD_HEIGHT);
-
-        this.ctx.shadowBlur = 0;
     }
 
     /**

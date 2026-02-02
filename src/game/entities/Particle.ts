@@ -1,5 +1,6 @@
 import { Vector2, Random } from '../../utils/utils';
 import { Config } from '../../config';
+import type { RenderOptions } from '../render/RenderOptions';
 
 /**
  * Particle - Visual effect particle
@@ -32,14 +33,19 @@ export class Particle {
         }
     }
 
-    public render(ctx: CanvasRenderingContext2D): void {
+    public render(ctx: CanvasRenderingContext2D, options?: RenderOptions): void {
         const alpha = this.life / this.maxLife;
         const currentRadius = this.radius * alpha;
+        const glowEnabled = options?.glowEnabled === true;
 
         ctx.globalAlpha = alpha;
         ctx.fillStyle = this.color;
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = this.color;
+        if (glowEnabled) {
+            ctx.shadowBlur = 6;
+            ctx.shadowColor = this.color;
+        } else {
+            ctx.shadowBlur = 0;
+        }
 
         ctx.beginPath();
         ctx.arc(this.position.x, this.position.y, currentRadius, 0, Math.PI * 2);
@@ -56,6 +62,19 @@ export class Particle {
 export class ParticleSystem {
     private particles: Particle[] = [];
     private pool: Particle[] = [];
+    private enabled: boolean = true;
+    private intensity: number = 1;
+
+    public setEnabled(enabled: boolean): void {
+        this.enabled = enabled;
+        if (!enabled) {
+            this.clear();
+        }
+    }
+
+    public setIntensity(multiplier: number): void {
+        this.intensity = Math.max(0, Math.min(2, multiplier || 1));
+    }
 
     /**
      * Emit particles at a position
@@ -68,7 +87,11 @@ export class ParticleSystem {
         radius: number = 3,
         life: number = 30
     ): void {
-        for (let i = 0; i < count; i++) {
+        if (!this.enabled) return;
+        const finalCount = Math.max(0, Math.floor(count * this.intensity));
+        if (finalCount <= 0) return;
+
+        for (let i = 0; i < finalCount; i++) {
             const angle = Random.float(0, Math.PI * 2);
             const velocity = new Vector2(
                 Math.cos(angle) * Random.float(0.5, 1) * speed,
@@ -113,6 +136,7 @@ export class ParticleSystem {
      * Update all particles
      */
     public update(dt: number): void {
+        if (!this.enabled) return;
         for (let i = this.particles.length - 1; i >= 0; i--) {
             this.particles[i].update(dt);
 
@@ -125,9 +149,10 @@ export class ParticleSystem {
     /**
      * Render all particles
      */
-    public render(ctx: CanvasRenderingContext2D): void {
+    public render(ctx: CanvasRenderingContext2D, options?: RenderOptions): void {
+        if (!this.enabled) return;
         for (const particle of this.particles) {
-            particle.render(ctx);
+            particle.render(ctx, options);
         }
     }
 

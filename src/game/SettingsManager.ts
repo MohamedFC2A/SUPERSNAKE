@@ -4,7 +4,7 @@
 
 export interface GameSettings {
     graphics: {
-        quality: 'low' | 'medium' | 'high';
+        quality: 'low' | 'medium' | 'high' | 'ultra';
         particles: boolean;
         showGrid: boolean;
         showMinimap: boolean;

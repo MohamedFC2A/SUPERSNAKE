@@ -6,6 +6,7 @@
     "nav": {
         "home": "الرئيسية",
         "play": "ابدأ اللعب",
+        "leaderboards": "لوحة المتصدرين",
         "changelog": "سجل التحديثات",
         "settings": "الإعدادات",
         "profile": "الملف الشخصي"
@@ -31,6 +32,16 @@
     "profile": {
         "title": "الملف الشخصي",
         "subtitle": "إحصائيات اللعب",
+        "cloudTitle": "الملف الأونلاين",
+        "cloudSubtitle": "سجّل الدخول لحفظ نتيجتك والظهور في لوحة المتصدرين",
+        "cloudNotConfigured": "مزايا الأونلاين غير مُفعّلة حالياً (مفاتيح Supabase غير موجودة).",
+        "cloudSignedOut": "غير مسجّل الدخول",
+        "cloudSignInHint": "سجّل الدخول بجوجل لمزامنة أفضل نتيجة لك",
+        "signInGoogle": "تسجيل الدخول بجوجل",
+        "signOut": "تسجيل الخروج",
+        "username": "اسم المستخدم",
+        "save": "حفظ",
+        "cloudBest": "أفضل نتيجة (أونلاين)",
         "localProfile": "ملف محلي (هذا الجهاز)",
         "gamesPlayed": "الألعاب التي لعبتها",
         "bestScore": "أفضل نتيجة",
@@ -41,6 +52,17 @@
         "memberSince": "يلعب منذ",
         "lastPlayed": "آخر لعبة",
         "localWarning": "الإحصائيات مخزنة محلياً على هذا الجهاز فقط"
+    },
+    "leaderboards": {
+        "title": "لوحة المتصدرين",
+        "subtitle": "ترتيب اللاعبين الحقيقيين حسب أفضل نتيجة",
+        "refresh": "تحديث",
+        "loading": "جاري التحميل…",
+        "empty": "لا توجد نتائج بعد. العب لعبة وسجّل نتيجتك!",
+        "player": "اللاعب",
+        "score": "النقاط",
+        "notConfiguredTitle": "لوحة المتصدرين غير مفعّلة",
+        "notConfiguredText": "أضف VITE_SUPABASE_URL و VITE_SUPABASE_ANON_KEY لتفعيل الملف الأونلاين ولوحة المتصدرين."
     },
     "notFound": {
         "message": "الصفحة غير موجودة",
@@ -98,6 +120,7 @@
         "low": "منخفضة",
         "medium": "متوسطة",
         "high": "عالية",
+        "ultra": "فائقة",
         "particles": "تأثيرات الجزيئات",
         "showGrid": "إظهار الشبكة",
         "showMinimap": "إظهار الخريطة المصغرة",

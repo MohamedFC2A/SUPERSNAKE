@@ -10,6 +10,8 @@ import { CollisionSystem } from './systems/CollisionSystem';
 import { AISystem } from './systems/AISystem';
 import { Boss } from './entities/Boss';
 import { getAudioManager } from '../audio';
+import type { GameSettings } from './SettingsManager';
+import type { GraphicsQuality, RenderOptions } from './render/RenderOptions';
 
 const BOT_NAMES = [
     'Viper', 'Cobra', 'Python', 'Mamba', 'Anaconda',
@@ -46,6 +48,12 @@ export class Game {
     private lastKiller: string | null = null;
     private isPaused: boolean = false;
 
+    // Runtime graphics settings (driven by SettingsManager)
+    private graphicsQuality: GraphicsQuality = 'high';
+    private glowEnabled: boolean = false;
+    private showGrid: boolean = true;
+    private particlesEnabled: boolean = true;
+
     constructor(canvas: HTMLCanvasElement) {
         this.canvas = canvas;
         this.renderer = new Renderer(canvas);
@@ -59,6 +67,48 @@ export class Game {
         this.aiSystem = new AISystem();
 
         this.setupGameLoop();
+    }
+
+    public applySettings(settings: GameSettings): void {
+        this.graphicsQuality = settings.graphics.quality;
+        this.showGrid = settings.graphics.showGrid;
+        this.particlesEnabled = settings.graphics.particles;
+
+        // Clean visuals: glow is disabled across all presets (Ultra explicitly requires 0 glow).
+        this.glowEnabled = false;
+
+        const dpr = window.devicePixelRatio || 1;
+        let desiredPixelRatio = 1;
+        let particleIntensity = 1;
+
+        switch (this.graphicsQuality) {
+            case 'low':
+                desiredPixelRatio = 1;
+                particleIntensity = 0.35;
+                break;
+            case 'medium':
+                desiredPixelRatio = Math.min(1.5, dpr);
+                particleIntensity = 0.65;
+                break;
+            case 'high':
+                desiredPixelRatio = Math.min(2, dpr);
+                particleIntensity = 1.0;
+                break;
+            case 'ultra':
+                desiredPixelRatio = Math.min(3, dpr);
+                particleIntensity = 1.15;
+                break;
+        }
+
+        this.renderer.setPixelRatio(desiredPixelRatio);
+        this.renderer.resize({ logicalWidth: window.innerWidth, logicalHeight: window.innerHeight });
+
+        this.particles.setEnabled(this.particlesEnabled);
+        this.particles.setIntensity(particleIntensity);
+    }
+
+    public resize(logicalWidth: number = window.innerWidth, logicalHeight: number = window.innerHeight): void {
+        this.renderer.resize({ logicalWidth, logicalHeight });
     }
 
     private setupGameLoop(): void {
@@ -182,7 +232,7 @@ export class Game {
         this.player.update(dt);
 
         // Boost particles
-        if (this.player.isBoosting) {
+        if (this.particlesEnabled && this.player.isBoosting) {
             const tailPos = this.player.segments[this.player.segments.length - 1].position;
             this.particles.boostTrail(tailPos, this.player.palette.primary);
         }
@@ -196,7 +246,7 @@ export class Game {
                 this.aiSystem.update(bot, allSnakes, foods, dt);
                 bot.update(dt);
 
-                if (bot.isBoosting) {
+                if (this.particlesEnabled && bot.isBoosting) {
                     const tailPos = bot.segments[bot.segments.length - 1].position;
                     this.particles.boostTrail(tailPos, bot.palette.primary);
                 }
@@ -213,12 +263,14 @@ export class Game {
                 this.handleBossDeath();
             }
             // Ambient boss VFX (lightweight)
-            this.bossVfxMs += dt;
-            if (this.bossVfxMs >= 160) {
-                const head = this.boss.segments[0]?.position ?? this.boss.position;
-                const jitter = Random.inCircle(this.boss.headRadius * 0.6);
-                this.particles.emit(head.add(jitter), '#ff2a2a', 1, 1.6, 4, 26);
-                this.bossVfxMs = 0;
+            if (this.particlesEnabled) {
+                this.bossVfxMs += dt;
+                if (this.bossVfxMs >= 160) {
+                    const head = this.boss.segments[0]?.position ?? this.boss.position;
+                    const jitter = Random.inCircle(this.boss.headRadius * 0.6);
+                    this.particles.emit(head.add(jitter), '#ff2a2a', 1, 1.6, 4, 26);
+                    this.bossVfxMs = 0;
+                }
             }
         } else if (!this.bossSpawned && this.player.score >= Config.BOSS_SCORE_THRESHOLD) {
             this.spawnBoss();
@@ -263,7 +315,9 @@ export class Game {
                 this.player.grow(food.value);
                 getAudioManager().play('collect');
             }
-            this.particles.foodConsumed(food.position, food.color);
+            if (this.particlesEnabled) {
+                this.particles.foodConsumed(food.position, food.color);
+            }
         }
 
         // Bot food collection
@@ -300,7 +354,9 @@ export class Game {
         victim.die();
 
         // Death effects
-        this.particles.deathExplosion(victim.position, victim.palette.primary);
+        if (this.particlesEnabled) {
+            this.particles.deathExplosion(victim.position, victim.palette.primary);
+        }
 
         // Drop food from body
         if (victim.segments.length > 3) {
@@ -354,8 +410,10 @@ export class Game {
         this.bossVfxMs = 0;
 
         // Spawn shockwave-ish burst
-        this.particles.emit(spawnPos, '#ff2a2a', 22, 4.2, 7, 55);
-        this.particles.emit(spawnPos, '#ffffff', 10, 2.8, 5, 45);
+        if (this.particlesEnabled) {
+            this.particles.emit(spawnPos, '#ff2a2a', 22, 4.2, 7, 55);
+            this.particles.emit(spawnPos, '#ffffff', 10, 2.8, 5, 45);
+        }
     }
 
     private handleBossDeath(): void {
@@ -364,8 +422,10 @@ export class Game {
         getAudioManager().play('bossExplode', { volume: 1.0, pitchVariance: 0.01 });
 
         // Explosion effect
-        this.particles.deathExplosion(this.boss.position, '#ff0000');
-        this.particles.emit(this.boss.position, '#ff2a2a', 45, 5.5, 7, 70);
+        if (this.particlesEnabled) {
+            this.particles.deathExplosion(this.boss.position, '#ff0000');
+            this.particles.emit(this.boss.position, '#ff2a2a', 45, 5.5, 7, 70);
+        }
 
         // Spawn a small speed-boost pickup
         this.foodManager.spawnFood(this.boss.position, 'speed_boost');
@@ -389,7 +449,9 @@ export class Game {
             // Fast path: head-to-head touch
             if (snakeHead.distance(bossHead) < snakeHeadRadius + bossHeadRadius) {
                 this.killSnake(snake, null);
-                this.particles.deathExplosion(snakeHead, snake.palette.primary);
+                if (this.particlesEnabled) {
+                    this.particles.deathExplosion(snakeHead, snake.palette.primary);
+                }
                 continue;
             }
 
@@ -399,7 +461,9 @@ export class Game {
                 const seg = bossSegments[i];
                 if (snakeHead.distance(seg.position) < snakeHeadRadius + seg.radius) {
                     this.killSnake(snake, null);
-                    this.particles.deathExplosion(snakeHead, snake.palette.primary);
+                    if (this.particlesEnabled) {
+                        this.particles.deathExplosion(snakeHead, snake.palette.primary);
+                    }
                     break;
                 }
             }
@@ -415,7 +479,9 @@ export class Game {
                 const seg = snake.segments[i];
                 if (bossHead.distance(seg.position) < bossHeadRadius + seg.radius) {
                     this.killSnake(snake, null);
-                    this.particles.deathExplosion(snakeHead, snake.palette.primary);
+                    if (this.particlesEnabled) {
+                        this.particles.deathExplosion(snakeHead, snake.palette.primary);
+                    }
                     break;
                 }
             }
@@ -429,36 +495,39 @@ export class Game {
         this.renderer.clear();
 
         if (this.state === 'playing' && this.player) {
+            const renderOptions: RenderOptions = { quality: this.graphicsQuality, glowEnabled: this.glowEnabled };
             this.renderer.beginCamera();
 
             // Draw grid
-            this.renderer.drawGrid();
+            if (this.showGrid) {
+                this.renderer.drawGrid();
+            }
 
             // Draw boundary
             this.renderer.drawBoundary();
 
             // Draw food
             const ctx = this.renderer.getContext();
-            this.foodManager.render(ctx);
+            this.foodManager.render(ctx, renderOptions);
 
             // Draw particles
-            this.particles.render(ctx);
+            this.particles.render(ctx, renderOptions);
 
             // Draw bots
             for (const bot of this.bots) {
                 if (bot.isAlive && this.renderer.isVisible(bot.position, 200)) {
-                    bot.render(ctx);
+                    bot.render(ctx, renderOptions);
                 }
             }
 
             // Draw Boss
             if (this.boss && this.boss.isAlive && this.renderer.isVisible(this.boss.position, 900)) {
-                this.boss.render(ctx);
+                this.boss.render(ctx, renderOptions);
             }
 
             // Draw player
             if (this.player.isAlive) {
-                this.player.render(ctx);
+                this.player.render(ctx, renderOptions);
             }
 
             this.renderer.endCamera();

@@ -95,6 +95,7 @@ export class SettingsPanel extends BaseScreen {
                             <option value="low" ${settings.graphics.quality === 'low' ? 'selected' : ''}>${t('settings.graphics.qualityLow')}</option>
                             <option value="medium" ${settings.graphics.quality === 'medium' ? 'selected' : ''}>${t('settings.graphics.qualityMedium')}</option>
                             <option value="high" ${settings.graphics.quality === 'high' ? 'selected' : ''}>${t('settings.graphics.qualityHigh')}</option>
+                            <option value="ultra" ${settings.graphics.quality === 'ultra' ? 'selected' : ''}>${t('settings.graphics.qualityUltra')}</option>
                         </select>
                     </div>
                 </div>
@@ -287,7 +288,7 @@ export class SettingsPanel extends BaseScreen {
         });
 
         // Graphics
-        this.bindSelect('qualityPreset', (v) => sm.updateSettings({ graphics: { quality: v as 'low' | 'medium' | 'high' } }));
+        this.bindSelect('qualityPreset', (v) => sm.updateSettings({ graphics: { quality: v as 'low' | 'medium' | 'high' | 'ultra' } }));
         this.bindCheckbox('particlesEnabled', (v) => sm.updateSettings({ graphics: { particles: v } }));
         this.bindCheckbox('gridEnabled', (v) => sm.updateSettings({ graphics: { showGrid: v } }));
         this.bindCheckbox('minimapEnabled', (v) => sm.updateSettings({ graphics: { showMinimap: v } }));

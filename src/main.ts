@@ -5,8 +5,10 @@ import { Layout } from './ui/Layout';
 import { SettingsManager } from './game/SettingsManager';
 import { getAudioManager } from './audio';
 import { captureBeforeInstallPrompt } from './pwa/install';
+import { initAuth } from './supabase';
 import { HomePage } from './ui/pages/HomePage';
 import { PlayPage } from './ui/pages/PlayPage';
+import { LeaderboardsPage } from './ui/pages/LeaderboardsPage';
 import { ProfilePage } from './ui/pages/ProfilePage';
 import { SettingsPage } from './ui/pages/SettingsPage';
 import { ChangelogPage } from './ui/pages/ChangelogPage';
@@ -28,6 +30,9 @@ function main(): void {
     audioManager.setEnabled(settings.audio.sfxEnabled);
     audioManager.setMasterVolume(settings.audio.masterVolume);
     audioManager.setSfxVolume(settings.audio.sfxVolume);
+
+    // Supabase auth (optional; requires VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY)
+    initAuth();
 
     // Subscribe to settings changes
     settingsManager.subscribe((newSettings) => {
@@ -76,6 +81,12 @@ function main(): void {
             currentPlayPage = new PlayPage(settingsManager);
             return currentPlayPage.getElement();
         }, 'Play')
+
+        .register('/leaderboards', () => {
+            layout.show();
+            layout.setNavVisible(true);
+            return new LeaderboardsPage().getElement();
+        }, 'Leaderboards')
 
         .register('/changelog', () => {
             layout.show();

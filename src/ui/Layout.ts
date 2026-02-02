@@ -64,6 +64,10 @@ export class Layout {
                     <span class="nav-link-icon">🎮</span>
                     <span class="nav-link-text">${t('nav.play')}</span>
                 </a>
+                <a href="#/leaderboards" class="nav-link${currentPath === '/leaderboards' ? ' active' : ''}" data-path="/leaderboards">
+                    <span class="nav-link-icon">🏆</span>
+                    <span class="nav-link-text">${t('nav.leaderboards')}</span>
+                </a>
                 <a href="#/changelog" class="nav-link${currentPath === '/changelog' ? ' active' : ''}" data-path="/changelog">
                     <span class="nav-link-icon">📋</span>
                     <span class="nav-link-text">${t('nav.changelog')}</span>

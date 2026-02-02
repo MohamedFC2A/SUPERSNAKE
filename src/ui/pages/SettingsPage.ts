@@ -159,14 +159,15 @@ export class SettingsPage {
     private renderGraphicsTab(settings: GameSettings): string {
         return `
             <div class="settings-section">
-                <div class="setting-row">
-                    <span class="setting-label">${t('settings.quality')}</span>
-                    <select class="setting-select" id="quality">
-                        <option value="low" ${settings.graphics.quality === 'low' ? 'selected' : ''}>${t('settings.low')}</option>
-                        <option value="medium" ${settings.graphics.quality === 'medium' ? 'selected' : ''}>${t('settings.medium')}</option>
-                        <option value="high" ${settings.graphics.quality === 'high' ? 'selected' : ''}>${t('settings.high')}</option>
-                    </select>
-                </div>
+                    <div class="setting-row">
+                        <span class="setting-label">${t('settings.quality')}</span>
+                        <select class="setting-select" id="quality">
+                            <option value="low" ${settings.graphics.quality === 'low' ? 'selected' : ''}>${t('settings.low')}</option>
+                            <option value="medium" ${settings.graphics.quality === 'medium' ? 'selected' : ''}>${t('settings.medium')}</option>
+                            <option value="high" ${settings.graphics.quality === 'high' ? 'selected' : ''}>${t('settings.high')}</option>
+                            <option value="ultra" ${settings.graphics.quality === 'ultra' ? 'selected' : ''}>${t('settings.ultra')}</option>
+                        </select>
+                    </div>
                 <div class="setting-row">
                     <span class="setting-label">${t('settings.particles')}</span>
                     <label class="toggle-switch">
@@ -332,7 +333,7 @@ export class SettingsPage {
 
             // Graphics
             case 'quality':
-                this.settingsManager.updateSettings({ graphics: { ...settings.graphics, quality: value as 'low' | 'medium' | 'high' } });
+                this.settingsManager.updateSettings({ graphics: { ...settings.graphics, quality: value as 'low' | 'medium' | 'high' | 'ultra' } });
                 break;
             case 'particles':
                 this.settingsManager.updateSettings({ graphics: { ...settings.graphics, particles: value as boolean } });

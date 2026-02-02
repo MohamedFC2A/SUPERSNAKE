@@ -1,6 +1,7 @@
 import { Vector2 } from '../../utils/utils';
 import { Config } from '../../config';
 import { Snake, SnakeSegment } from './Snake';
+import type { RenderOptions } from '../render/RenderOptions';
 
 export class Boss {
     public position: Vector2;
@@ -91,7 +92,7 @@ export class Boss {
         return this.headRadius + (this.segments.length - 1) * Config.BOSS_SEGMENT_SPACING;
     }
 
-    public render(ctx: CanvasRenderingContext2D): void {
+    public render(ctx: CanvasRenderingContext2D, _options?: RenderOptions): void {
         if (!this.isAlive) return;
 
         // Body (tail -> neck). Head is drawn separately for a stronger silhouette.
