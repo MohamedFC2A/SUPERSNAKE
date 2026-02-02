@@ -49,41 +49,41 @@ export class Layout {
         const currentPath = router.getCurrentPath() || '/';
 
         this.navElement.innerHTML = `
-            <div class="nav-brand">
-                <a href="#/" class="nav-logo" aria-label="${t('menu.title')}">
-                    <span class="nav-logo-icon">🐍</span>
-                    <span class="nav-logo-text">${t('menu.title')}</span>
-                </a>
+            <div class="nav-inner">
+                <div class="nav-brand">
+                    <a href="#/" class="nav-logo" aria-label="${t('menu.title')}">
+                        <span class="nav-mark" aria-hidden="true"></span>
+                        <span class="nav-logo-text">${t('menu.title')}</span>
+                    </a>
+                </div>
+
+                <button class="nav-toggle" id="navToggle" aria-label="${t('nav.toggle')}" aria-expanded="false" aria-controls="navLinks">
+                    <span class="nav-toggle-bars" aria-hidden="true">
+                        <span></span><span></span><span></span>
+                    </span>
+                </button>
+
+                <div class="nav-links" id="navLinks" role="navigation" aria-label="${t('nav.main')}">
+                    <a href="#/" class="nav-link${currentPath === '/' ? ' active' : ''}" data-path="/">
+                        <span class="nav-link-text">${t('nav.home')}</span>
+                    </a>
+                    <a href="#/play" class="nav-link nav-link-primary${currentPath === '/play' ? ' active' : ''}" data-path="/play">
+                        <span class="nav-link-text">${t('nav.play')}</span>
+                    </a>
+                    <a href="#/leaderboards" class="nav-link${currentPath === '/leaderboards' ? ' active' : ''}" data-path="/leaderboards">
+                        <span class="nav-link-text">${t('nav.leaderboards')}</span>
+                    </a>
+                    <a href="#/changelog" class="nav-link${currentPath === '/changelog' ? ' active' : ''}" data-path="/changelog">
+                        <span class="nav-link-text">${t('nav.changelog')}</span>
+                    </a>
+                    <a href="#/settings" class="nav-link${currentPath === '/settings' ? ' active' : ''}" data-path="/settings">
+                        <span class="nav-link-text">${t('nav.settings')}</span>
+                    </a>
+                    <a href="#/profile" class="nav-link${currentPath === '/profile' ? ' active' : ''}" data-path="/profile">
+                        <span class="nav-link-text">${t('nav.profile')}</span>
+                    </a>
+                </div>
             </div>
-            <div class="nav-links" role="navigation" aria-label="Main navigation">
-                <a href="#/" class="nav-link${currentPath === '/' ? ' active' : ''}" data-path="/">
-                    <span class="nav-link-icon">🏠</span>
-                    <span class="nav-link-text">${t('nav.home')}</span>
-                </a>
-                <a href="#/play" class="nav-link${currentPath === '/play' ? ' active' : ''}" data-path="/play">
-                    <span class="nav-link-icon">🎮</span>
-                    <span class="nav-link-text">${t('nav.play')}</span>
-                </a>
-                <a href="#/leaderboards" class="nav-link${currentPath === '/leaderboards' ? ' active' : ''}" data-path="/leaderboards">
-                    <span class="nav-link-icon">🏆</span>
-                    <span class="nav-link-text">${t('nav.leaderboards')}</span>
-                </a>
-                <a href="#/changelog" class="nav-link${currentPath === '/changelog' ? ' active' : ''}" data-path="/changelog">
-                    <span class="nav-link-icon">📋</span>
-                    <span class="nav-link-text">${t('nav.changelog')}</span>
-                </a>
-                <a href="#/settings" class="nav-link${currentPath === '/settings' ? ' active' : ''}" data-path="/settings">
-                    <span class="nav-link-icon">⚙️</span>
-                    <span class="nav-link-text">${t('nav.settings')}</span>
-                </a>
-                <a href="#/profile" class="nav-link${currentPath === '/profile' ? ' active' : ''}" data-path="/profile">
-                    <span class="nav-link-icon">👤</span>
-                    <span class="nav-link-text">${t('nav.profile')}</span>
-                </a>
-            </div>
-            <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation" aria-expanded="false">
-                <span class="nav-toggle-icon">☰</span>
-            </button>
         `;
 
         this.setupMobileToggle();

@@ -9,7 +9,9 @@
         "leaderboards": "Leaderboards",
         "changelog": "Changelog",
         "settings": "Settings",
-        "profile": "Profile"
+        "profile": "Profile",
+        "toggle": "Toggle navigation",
+        "main": "Main navigation"
     },
     "menu": {
         "title": "Snake Survival",
