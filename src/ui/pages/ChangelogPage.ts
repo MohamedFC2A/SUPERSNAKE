@@ -26,6 +26,7 @@ export class ChangelogPage {
     private showEditor: boolean = false;
     private editing: ChangelogEntryRow | null = null;
     private saving: boolean = false;
+    private aiFilling: boolean = false;
     private formError: string | null = null;
 
     constructor() {
@@ -260,6 +261,9 @@ export class ChangelogPage {
                         ${this.formError ? `<div class="form-error" role="alert">${this.escapeHtml(this.formError)}</div>` : ''}
 
                         <div class="modal-actions">
+                            <button type="button" class="btn btn-secondary" id="aiFillBtn" ${this.saving || this.aiFilling || mode === 'signedOut' ? 'disabled' : ''}>
+                                ${this.aiFilling ? 'AI…' : 'AI fill'}
+                            </button>
                             <button type="button" class="btn btn-secondary" id="cancelChangelogEditorBtn" ${this.saving ? 'disabled' : ''}>Cancel</button>
                             <button type="submit" class="btn btn-primary" ${this.saving || mode === 'signedOut' ? 'disabled' : ''}>
                                 ${this.saving ? 'Saving…' : 'Save'}
@@ -329,6 +333,10 @@ export class ChangelogPage {
             this.render();
         });
 
+        this.container.querySelector('#aiFillBtn')?.addEventListener('click', () => {
+            void this.handleAiFill();
+        });
+
         const form = this.container.querySelector('#changelogEditorForm') as HTMLFormElement | null;
         form?.addEventListener('submit', (e) => {
             e.preventDefault();
@@ -344,6 +352,74 @@ export class ChangelogPage {
             .map((s) => s.trim())
             .filter((s) => s.length > 0);
         return lines.length > 0 ? lines : null;
+    }
+
+    private setLines(selector: string, lines: string[] | null | undefined, onlyIfEmpty: boolean): void {
+        const textarea = this.container.querySelector(selector) as HTMLTextAreaElement | null;
+        if (!textarea) return;
+        if (onlyIfEmpty && textarea.value.trim().length > 0) return;
+        const list = Array.isArray(lines) ? lines : [];
+        textarea.value = list.join('\n');
+    }
+
+    private setText(selector: string, text: string | null | undefined, onlyIfEmpty: boolean): void {
+        const textarea = this.container.querySelector(selector) as HTMLTextAreaElement | null;
+        if (!textarea) return;
+        if (onlyIfEmpty && textarea.value.trim().length > 0) return;
+        textarea.value = (text || '').toString();
+    }
+
+    private async handleAiFill(): Promise<void> {
+        const auth = getAuthState();
+        if (!auth.user || !auth.session?.access_token) {
+            this.formError = 'Sign in first.';
+            this.render();
+            return;
+        }
+
+        const title = (this.container.querySelector('#entryTitle') as HTMLInputElement | null)?.value || '';
+        const cleanTitle = title.trim();
+        if (!cleanTitle) {
+            this.formError = 'Write a title first.';
+            this.render();
+            return;
+        }
+
+        this.aiFilling = true;
+        this.formError = null;
+        this.render();
+
+        try {
+            const res = await fetch('/api/ai/changelog', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${auth.session.access_token}`,
+                },
+                body: JSON.stringify({ title: cleanTitle, locale: this.getLocale() }),
+            });
+
+            const data = await res.json().catch(() => null);
+            if (!res.ok) {
+                this.formError = (data && (data.error || data.detail)) ? `${data.error || 'AI failed'}${data.detail ? `: ${data.detail}` : ''}` : 'AI failed';
+                this.aiFilling = false;
+                this.render();
+                return;
+            }
+
+            const onlyIfEmpty = true;
+            this.setText('#entryDescription', data?.description, onlyIfEmpty);
+            this.setLines('#entryAdded', data?.added, onlyIfEmpty);
+            this.setLines('#entryChanged', data?.changed, onlyIfEmpty);
+            this.setLines('#entryFixed', data?.fixed, onlyIfEmpty);
+
+            this.aiFilling = false;
+            this.render();
+        } catch (e: any) {
+            this.formError = e?.message || 'AI failed';
+            this.aiFilling = false;
+            this.render();
+        }
     }
 
     private async handleSave(): Promise<void> {
@@ -433,4 +509,3 @@ export class ChangelogPage {
         this.unsubscribeLocale?.();
     }
 }
-
