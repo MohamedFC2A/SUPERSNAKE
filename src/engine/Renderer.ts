@@ -106,9 +106,19 @@ export class Renderer {
 
         // Adjust zoom based on snake size
         const sizeRatio = snakeSize / Config.SNAKE_INITIAL_LENGTH;
+        const baseZoom = 1.2 - (sizeRatio * 0.05);
+
+        // Mobile portrait: zoom out a bit to show more area (better playability).
+        const isPortrait = this.height > this.width;
+        const minDim = Math.min(this.width, this.height);
+        const smallScreenFactor = minDim < 780 ? (0.82 + 0.18 * (minDim / 780)) : 1;
+
+        const zoomMin = Config.CAMERA_ZOOM_MIN * (isPortrait ? 0.72 : 1);
+        const zoomMax = Config.CAMERA_ZOOM_MAX * (isPortrait ? 0.92 : 1);
+
         this.camera.targetZoom = Math.max(
-            Config.CAMERA_ZOOM_MIN,
-            Math.min(Config.CAMERA_ZOOM_MAX, 1.2 - (sizeRatio * 0.05))
+            zoomMin,
+            Math.min(zoomMax, baseZoom * smallScreenFactor)
         );
 
         // Lerp zoom

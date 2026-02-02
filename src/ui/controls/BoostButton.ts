@@ -35,6 +35,7 @@ export class BoostButton {
     private render(): void {
         const { size, position } = this.config;
 
+        this.container.innerHTML = '';
         this.container.className = `boost-button-container ${position}`;
         this.container.style.cssText = `
             width: ${size}px;
@@ -117,7 +118,6 @@ export class BoostButton {
     updateConfig(config: Partial<BoostButtonConfig>): void {
         this.config = { ...this.config, ...config };
         this.render();
-        this.setupEventListeners();
     }
 
     show(): void {

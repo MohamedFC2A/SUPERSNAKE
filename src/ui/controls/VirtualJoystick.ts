@@ -48,6 +48,7 @@ export class VirtualJoystick {
         const { size, position } = this.config;
         const handleSize = size * 0.4;
 
+        this.container.innerHTML = '';
         this.container.className = `joystick-container${position === 'right' ? ' right' : ''}`;
         this.container.style.cssText = `
             width: ${size}px;

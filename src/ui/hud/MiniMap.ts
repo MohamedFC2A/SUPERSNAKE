@@ -30,7 +30,6 @@ export class MiniMap {
     private ctx: CanvasRenderingContext2D;
     private config: MiniMapConfig;
     private isVisible: boolean = true;
-    private isCollapsed: boolean = false;
 
     private readonly mapSize = 140;
     private readonly padding = 4;
@@ -54,60 +53,20 @@ export class MiniMap {
 
         this.ctx = this.canvas.getContext('2d')!;
 
-        // Default to collapsed on small/mobile screens to avoid blocking gameplay
-        this.isCollapsed = window.matchMedia('(max-width: 520px)').matches || window.matchMedia('(max-height: 520px)').matches;
-
         this.render();
-        this.setupKeyboardShortcut();
     }
 
     private render(): void {
         this.container.innerHTML = `
-            <div class="minimap-header">
-                <span class="minimap-title">Map</span>
-                <button class="minimap-toggle" id="minimapToggle" aria-label="Toggle minimap">−</button>
-            </div>
             <div class="minimap-body" id="minimapBody"></div>
         `;
 
         const body = this.container.querySelector('#minimapBody') as HTMLElement | null;
         body?.appendChild(this.canvas);
-        if (this.isCollapsed && body) {
-            body.style.display = 'none';
-        }
-
-        const toggle = this.container.querySelector('#minimapToggle');
-        if (this.isCollapsed && toggle) {
-            toggle.textContent = '+';
-        }
-        toggle?.addEventListener('click', () => this.toggleCollapse());
-    }
-
-    private setupKeyboardShortcut(): void {
-        window.addEventListener('keydown', (e) => {
-            if (e.key === 'm' || e.key === 'M') {
-                // Don't toggle if typing in an input
-                if ((e.target as HTMLElement).tagName === 'INPUT') return;
-                this.toggleCollapse();
-            }
-        });
     }
 
     getElement(): HTMLElement {
         return this.container;
-    }
-
-    toggleCollapse(): void {
-        this.isCollapsed = !this.isCollapsed;
-        const body = this.container.querySelector('#minimapBody') as HTMLElement;
-        const toggle = this.container.querySelector('#minimapToggle');
-
-        if (body) {
-            body.style.display = this.isCollapsed ? 'none' : 'block';
-        }
-        if (toggle) {
-            toggle.textContent = this.isCollapsed ? '+' : '−';
-        }
     }
 
     /**
@@ -120,7 +79,7 @@ export class MiniMap {
         viewportWidth?: number,
         viewportHeight?: number
     ): void {
-        if (!this.isVisible || this.isCollapsed) return;
+        if (!this.isVisible) return;
 
         // Throttle updates
         const now = performance.now();
@@ -130,8 +89,8 @@ export class MiniMap {
         const ctx = this.ctx;
         const size = this.mapSize;
 
-        // Clear canvas with dark background
-        ctx.fillStyle = 'rgba(15, 15, 25, 0.95)';
+        // Clear canvas with clean dark background
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.92)';
         ctx.fillRect(0, 0, size, size);
 
         // Scale factors
@@ -244,11 +203,6 @@ export class MiniMap {
     hide(): void {
         this.isVisible = false;
         this.container.classList.add('hidden');
-    }
-
-    // Legacy method for backwards compatibility
-    toggle(): void {
-        this.toggleCollapse();
     }
 }
 

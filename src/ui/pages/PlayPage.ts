@@ -34,6 +34,11 @@ export class PlayPage {
     private isDestroyed: boolean = false;
     private installOverlayVisible: boolean = false;
 
+    // Mobile control smoothing
+    private controlSensitivity: number = 5;
+    private smoothedJoystick: Vector2 = Vector2.zero();
+    private lastControlSyncMs: number = 0;
+
     // HUD
     private hud: HUDManager | null = null;
     private miniMap: MiniMap | null = null;
@@ -235,14 +240,18 @@ export class PlayPage {
             if (this.joystick) {
                 this.joystick.updateConfig({
                     size: newSettings.controls.joystickSize,
-                    position: newSettings.controls.joystickPosition,
+                    position: 'left',
+                    deadZone: Math.max(8, Math.round(newSettings.controls.joystickSize * 0.07)),
+                    maxRadius: Math.max(44, Math.round(newSettings.controls.joystickSize * 0.42)),
                 });
             }
             if (this.boostButton) {
                 this.boostButton.updateConfig({
-                    position: newSettings.controls.joystickPosition === 'left' ? 'right' : 'left',
+                    position: 'right',
                 });
             }
+
+            this.controlSensitivity = newSettings.controls.sensitivity;
         });
 
         // Initialize HUD
@@ -269,12 +278,7 @@ export class PlayPage {
         // Play start sound
         getAudioManager().play('start');
 
-        // Orientation guard (force rotate)
-        if (this.isTouchDevice()) {
-            this.tryLockLandscape();
-            this.initOrientationGuard();
-            this.updateOrientationGuard();
-        }
+        // Portrait is allowed on mobile (no forced rotate)
 
         // Start HUD update loop
         this.startUpdateLoop();
@@ -352,17 +356,19 @@ export class PlayPage {
         if (!uiLayer) return;
 
         const settings = this.settingsManager.getSettings();
+        this.controlSensitivity = settings.controls.sensitivity;
 
         this.joystick = new VirtualJoystick({
             size: settings.controls.joystickSize,
-            position: settings.controls.joystickPosition,
-            deadZone: 10,
-            maxRadius: 50,
+            // Force mobile layout: joystick left, boost right
+            position: 'left',
+            deadZone: Math.max(8, Math.round(settings.controls.joystickSize * 0.07)),
+            maxRadius: Math.max(44, Math.round(settings.controls.joystickSize * 0.42)),
         });
 
         this.boostButton = new BoostButton({
             size: 80,
-            position: settings.controls.joystickPosition === 'left' ? 'right' : 'left',
+            position: 'right',
         });
 
         uiLayer.appendChild(this.joystick.getElement());
@@ -549,17 +555,28 @@ export class PlayPage {
     private syncMobileControls(): void {
         if (!this.game) return;
 
-        // If user is forced to rotate, keep controls neutral.
-        if (this.orientationBlocked) {
-            this.game.getInput().setExternalJoystick(Vector2.zero(), false);
-            this.game.getInput().setExternalBoostPressed(false);
-            return;
-        }
-
         if (this.joystick) {
+            const now = performance.now();
+            const dtSec = this.lastControlSyncMs > 0 ? Math.min(0.05, (now - this.lastControlSyncMs) / 1000) : (1 / 60);
+            this.lastControlSyncMs = now;
+
+            const sensitivity = Math.max(1, Math.min(10, this.controlSensitivity));
+            const base = 0.10 + ((sensitivity - 1) / 9) * 0.35; // responsiveness: 0.10..0.45
+            const follow = 1 - Math.pow(1 - base, dtSec * 60);
+            const release = 1 - Math.pow(1 - 0.42, dtSec * 60);
+
             const state = this.joystick.getState();
-            const dir = new Vector2(state.direction.x, state.direction.y);
-            this.game.getInput().setExternalJoystick(dir, state.active && state.magnitude > 0);
+            const target = new Vector2(state.direction.x, state.direction.y);
+
+            if (state.active && state.magnitude > 0.06 && target.magnitude() > 0) {
+                this.smoothedJoystick = this.smoothedJoystick.lerp(target.normalize(), follow);
+            } else {
+                this.smoothedJoystick = this.smoothedJoystick.lerp(Vector2.zero(), release);
+            }
+
+            const active = state.active && this.smoothedJoystick.magnitude() > 0.08;
+            const finalDir = active ? this.smoothedJoystick : Vector2.zero();
+            this.game.getInput().setExternalJoystick(finalDir, active);
         }
 
         if (this.boostButton) {
@@ -641,7 +658,7 @@ export class PlayPage {
         const entriesContainer = this.leaderboard.querySelector('#leaderboardEntries');
         if (!entriesContainer) return;
 
-        const entries = this.game.getLeaderboard();
+        const entries = this.game.getLeaderboard().slice(0, 3);
         entriesContainer.innerHTML = entries
             .map((entry, i) => `
                 <div class="leaderboard-entry${entry.isPlayer ? ' self' : ''}">

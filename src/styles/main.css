@@ -1112,7 +1112,7 @@ select:focus-visible {
 /* ===== Leaderboard ===== */
 .leaderboard {
   position: absolute;
-  top: var(--space-m);
+  top: 84px;
   inset-inline-end: var(--space-m);
   min-width: 160px;
   padding: var(--space-m);
@@ -1120,6 +1120,7 @@ select:focus-visible {
   border: 1px solid var(--ui-border);
   border-radius: var(--radius-m);
   z-index: 50;
+  pointer-events: none;
 }
 
 .leaderboard-title {
@@ -1183,13 +1184,16 @@ select:focus-visible {
 /* ===== Minimap ===== */
 .minimap {
   position: absolute;
-  bottom: var(--space-m);
-  inset-inline-end: var(--space-m);
+  top: 84px;
+  bottom: auto;
+  inset-inline-start: var(--space-m);
+  inset-inline-end: auto;
   background: var(--ui-panel);
   border: 1px solid var(--ui-border);
   border-radius: var(--radius-m);
   overflow: hidden;
   z-index: 50;
+  pointer-events: none;
 }
 
 .hide-minimap .minimap {
@@ -1377,22 +1381,23 @@ select:focus-visible {
 /* ===== Mobile HUD layout improvements ===== */
 @media (pointer: coarse), (max-width: 720px) {
   .play-page .leaderboard {
-    inset-inline-end: auto;
-    inset-inline-start: calc(var(--space-m) + env(safe-area-inset-left));
-    top: calc(var(--space-m) + env(safe-area-inset-top));
+    inset-inline-start: auto;
+    inset-inline-end: calc(var(--space-m) + env(safe-area-inset-right));
+    top: calc(84px + env(safe-area-inset-top));
     min-width: 150px;
     max-width: 44vw;
-    max-height: 180px;
+    max-height: 130px;
     overflow: auto;
     pointer-events: none;
   }
 
   .play-page .minimap {
-    top: calc(var(--space-m) + env(safe-area-inset-top));
+    top: calc(84px + env(safe-area-inset-top));
     bottom: auto;
-    inset-inline-end: calc(var(--space-m) + env(safe-area-inset-right));
+    inset-inline-start: calc(var(--space-m) + env(safe-area-inset-left));
+    inset-inline-end: auto;
     transform: scale(0.92);
-    transform-origin: top right;
+    transform-origin: top left;
     pointer-events: none;
   }
 }
