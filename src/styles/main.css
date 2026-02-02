@@ -3500,8 +3500,10 @@ select:focus-visible {
 /* Boss HUD */
 .boss-hud {
   position: absolute;
-  top: 72px;
-  width: 100%;
+  top: calc(env(safe-area-inset-top) + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -3513,12 +3515,12 @@ select:focus-visible {
 
 .boss-warning {
   font-family: var(--font-display);
-  font-size: 18px;
+  font-size: 13px;
   font-weight: 800;
   color: rgba(255, 255, 255, 0.92);
   background: rgba(10, 10, 10, 0.22);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 8px 14px;
+  padding: 6px 10px;
   border-radius: 999px;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -3529,10 +3531,10 @@ select:focus-visible {
 
 .boss-timer {
   font-family: var(--font-display);
-  font-size: 16px;
+  font-size: 12px;
   color: rgba(255, 255, 255, 0.9);
   background: rgba(17, 17, 17, 0.18);
-  padding: 8px 14px;
+  padding: 6px 10px;
   border-radius: 999px;
   border: 1px solid rgba(239, 68, 68, 0.35);
   backdrop-filter: blur(12px);
@@ -3540,7 +3542,7 @@ select:focus-visible {
 }
 
 .boss-countdown {
-  width: min(520px, 88vw);
+  width: min(420px, 86vw);
 }
 
 .boss-countdown-track {
@@ -3570,6 +3572,28 @@ select:focus-visible {
   z-index: 300;
   opacity: 1;
   transition: opacity 250ms ease;
+}
+
+@media (max-width: 480px) {
+  .boss-hud {
+    top: calc(env(safe-area-inset-top) + 6px);
+    gap: 6px;
+  }
+
+  .boss-warning {
+    font-size: 12px;
+    padding: 5px 9px;
+    letter-spacing: 0.06em;
+  }
+
+  .boss-timer {
+    font-size: 11px;
+    padding: 5px 9px;
+  }
+
+  .boss-countdown {
+    width: min(360px, 84vw);
+  }
 }
 
 /* Boss mode: slightly darker + tenser */

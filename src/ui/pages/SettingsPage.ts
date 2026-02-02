@@ -121,22 +121,22 @@ export class SettingsPage {
                 </div>
             </div>
 
-            ${this.updateAvailable ? `
-                <div class="settings-section">
-                    <div class="setting-row">
-                        <div>
-                            <div class="section-title">${t('settings.updateTitle')}</div>
-                            <div class="section-subtitle">${t('settings.updateSubtitle')}</div>
-                            ${this.updateError ? `<div class="panel panel-warning" style="margin-top:10px;"><div class="panel-text">${this.escapeHtml(this.updateError)}</div></div>` : ''}
+            <div class="settings-section">
+                <div class="setting-row">
+                    <div>
+                        <div class="section-title">${t('settings.updateTitle')}</div>
+                        <div class="section-subtitle">
+                            ${this.updateAvailable ? t('settings.updateSubtitle') : t('settings.refreshSubtitle')}
                         </div>
-                        <div class="setting-control">
-                            <button class="btn btn-primary" id="updateGameBtn" type="button">
-                                ${this.checkingUpdate ? t('settings.updateChecking') : t('settings.updateButton')}
-                            </button>
-                        </div>
+                        ${this.updateError ? `<div class="panel panel-warning" style="margin-top:10px;"><div class="panel-text">${this.escapeHtml(this.updateError)}</div></div>` : ''}
+                    </div>
+                    <div class="setting-control">
+                        <button class="btn ${this.updateAvailable ? 'btn-primary' : 'btn-secondary'}" id="updateGameBtn" type="button">
+                            ${this.checkingUpdate ? t('settings.updateChecking') : (this.updateAvailable ? t('settings.updateButton') : t('settings.refreshButton'))}
+                        </button>
                     </div>
                 </div>
-            ` : ''}
+            </div>
 
             ${this.showResetModal ? this.renderResetModal() : ''}
         `;

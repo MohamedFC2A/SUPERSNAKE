@@ -148,7 +148,9 @@
         "fontScale": "Font Scale",
         "updateTitle": "Update game",
         "updateSubtitle": "A new version is available. Clear old cache and reload.",
+        "refreshSubtitle": "Reload the site and clear any old cache if something feels wrong.",
         "updateButton": "Update now",
+        "refreshButton": "Refresh",
         "updateChecking": "Updating…"
     },
     "hud": {
