@@ -299,7 +299,6 @@ export async function updateUsername(username: string): Promise<void> {
   } catch {
     // ignore
   }
-  loadProfileInBackground(user.id);
 }
 
 export async function updateTheme(theme: 'dark' | 'light'): Promise<void> {
@@ -315,7 +314,6 @@ export async function updateTheme(theme: 'dark' | 'light'): Promise<void> {
   } catch {
     // ignore
   }
-  loadProfileInBackground(user.id);
 }
 
 export async function updateProfileSettings(settings: unknown): Promise<void> {
@@ -330,5 +328,4 @@ export async function updateProfileSettings(settings: unknown): Promise<void> {
   } catch {
     // ignore
   }
-  loadProfileInBackground(user.id);
 }

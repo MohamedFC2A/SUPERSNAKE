@@ -25,13 +25,6 @@ function main(): void {
     if (!import.meta.env.DEV) {
         void (async () => {
             try {
-                // Clear localStorage (best-effort; may throw in some privacy modes)
-                localStorage.clear();
-            } catch {
-                // ignore
-            }
-
-            try {
                 if ('serviceWorker' in navigator) {
                     const regs = await navigator.serviceWorker.getRegistrations();
                     await Promise.all(regs.map((r) => r.unregister()));
@@ -106,6 +99,9 @@ function main(): void {
     let persistTimer: number | null = null;
 
     const schedulePersistSettings = (): void => {
+        // If this change came from Supabase (applyRemoteSettings), don't schedule a write-back.
+        // Otherwise we can get a "ping-pong" where remote settings re-save and disrupt UI.
+        if (applyingRemoteSettings) return;
         if (persistTimer) window.clearTimeout(persistTimer);
         persistTimer = window.setTimeout(() => {
             persistTimer = null;

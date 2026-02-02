@@ -41,7 +41,13 @@ export class SettingsPage {
         this.onVisibilityChange = () => document.removeEventListener('visibilitychange', handler);
 
         this.unsubscribeAuth = subscribeAuth(() => {
-            this.updateContent();
+            // Avoid full re-render on auth/profile changes: it disrupts sliders/toggles mid-interaction
+            // and can look like settings "revert". We only need to keep the theme dropdown in sync.
+            const currentTheme: Theme = (getAuthState().profile?.theme === 'light' ? 'light' : 'dark');
+            const themeSelect = this.container.querySelector('#theme') as HTMLSelectElement | null;
+            if (themeSelect && themeSelect.value !== currentTheme) {
+                themeSelect.value = currentTheme;
+            }
         });
     }
 

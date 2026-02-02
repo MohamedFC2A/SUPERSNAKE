@@ -16,3 +16,12 @@ export {
 export { fetchLeaderboard, fetchMyBestScore, submitScore, type LeaderboardEntry } from './leaderboards';
 export { setAuthError, takeAuthError, peekAuthErrors } from './errors';
 export { fetchMyUserStats, submitGameSession, type UserStatsRow } from './stats';
+export {
+  fetchChangelogEntries,
+  isCurrentUserAdmin,
+  createChangelogEntry,
+  updateChangelogEntry,
+  deleteChangelogEntry,
+  type ChangelogEntryRow,
+  type ChangelogEntryInput,
+} from './changelog';
