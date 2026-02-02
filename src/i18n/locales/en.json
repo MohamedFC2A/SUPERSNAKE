@@ -1,0 +1,160 @@
+{
+    "app": {
+        "title": "Snake Survival",
+        "subtitle": "Survival Arena"
+    },
+    "nav": {
+        "home": "Home",
+        "play": "Play",
+        "changelog": "Changelog",
+        "settings": "Settings",
+        "profile": "Profile"
+    },
+    "menu": {
+        "title": "Snake Survival",
+        "subtitle": "Survival Arena",
+        "play": "Play",
+        "settings": "Settings",
+        "changelog": "Changelog",
+        "enterName": "Enter your name",
+        "highScore": "High Score",
+        "hint": "Press ENTER or tap PLAY to start"
+    },
+    "home": {
+        "feature1Title": "Classic Gameplay",
+        "feature1Desc": "The snake game you love, reimagined with modern graphics",
+        "feature2Title": "AI Opponents",
+        "feature2Desc": "Compete against smart bot snakes in the arena",
+        "feature3Title": "Track Your Progress",
+        "feature3Desc": "Stats, high scores, and achievements to unlock"
+    },
+    "profile": {
+        "title": "Profile",
+        "subtitle": "Your game statistics",
+        "localProfile": "Local Profile (this device)",
+        "gamesPlayed": "Games Played",
+        "bestScore": "Best Score",
+        "totalScore": "Total Score",
+        "longestSurvival": "Longest Survival",
+        "highScoreDate": "High Score Date",
+        "highScoreVersion": "High Score Version",
+        "memberSince": "Playing Since",
+        "lastPlayed": "Last Played",
+        "localWarning": "Stats are stored locally on this device only"
+    },
+    "notFound": {
+        "message": "Page Not Found",
+        "description": "The page you're looking for doesn't exist.",
+        "goHome": "Go Home"
+    },
+    "developer": {
+        "title": "Developer Mode (Local)",
+        "warning": "⚠️ This is a dev-only feature. Data is stored in localStorage and is NOT secure for production.",
+        "enterPassword": "Enter developer password",
+        "unlock": "Unlock",
+        "wrongPassword": "Wrong password",
+        "lockedOut": "Too many attempts. Try again in",
+        "attemptsRemaining": "Attempts remaining: {{count}}",
+        "addEntry": "Add Entry",
+        "editEntry": "Edit Entry",
+        "deleteEntry": "Delete Entry",
+        "confirmDelete": "Are you sure you want to delete this entry?",
+        "resetSeed": "Reset to Seed",
+        "resetSeedConfirm": "Are you sure you want to reset all entries to seed data? This cannot be undone.",
+        "version": "Version",
+        "title_field": "Title",
+        "date": "Date",
+        "description": "Description",
+        "added": "Added",
+        "changed": "Changed",
+        "fixed": "Fixed",
+        "save": "Save",
+        "cancel": "Cancel",
+        "logout": "Exit Developer Mode"
+    },
+    "settings": {
+        "title": "Settings",
+        "subtitle": "Personalize your experience",
+        "saved": "Saved",
+        "reset": "Reset",
+        "resetTitle": "Reset settings?",
+        "resetDescription": "This will restore all settings to their default values.",
+        "resetConfirm": "Reset",
+        "cancel": "Cancel",
+        "audio": "Audio",
+        "controls": "Controls",
+        "graphics": "Graphics",
+        "accessibility": "Accessibility",
+        "masterVolume": "Master Volume",
+        "sfx": "Sound Effects",
+        "sfxVolume": "SFX Volume",
+        "vibration": "Vibration",
+        "joystickSize": "Joystick Size",
+        "joystickPosition": "Joystick Position",
+        "left": "Left",
+        "right": "Right",
+        "sensitivity": "Sensitivity",
+        "quality": "Quality",
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High",
+        "particles": "Particle Effects",
+        "showGrid": "Show Grid",
+        "showMinimap": "Show Minimap",
+        "language": "Language",
+        "colorblindMode": "Colorblind Mode",
+        "none": "None",
+        "highContrast": "High Contrast",
+        "reducedMotion": "Reduced Motion",
+        "fontScale": "Font Scale"
+    },
+    "hud": {
+        "score": "Score",
+        "mass": "Mass",
+        "rank": "Rank",
+        "boost": "BOOST"
+    },
+    "pause": {
+        "title": "Paused",
+        "score": "Score",
+        "mass": "Mass",
+        "time": "Time",
+        "resume": "Resume",
+        "restart": "Restart",
+        "settings": "Settings",
+        "exitToMenu": "Exit to Menu"
+    },
+    "gameOver": {
+        "title": "Game Over",
+        "killedBy": "Killed by",
+        "newHighScore": "New High Score!",
+        "finalScore": "Final Score",
+        "peakMass": "Peak Mass",
+        "survivalTime": "Survival Time",
+        "kills": "Kills",
+        "highScore": "High Score",
+        "playAgain": "Play Again",
+        "share": "Share",
+        "mainMenu": "Main Menu"
+    },
+    "splash": {
+        "skip": "Skip",
+        "tips": {
+            "tip1": "Survive the arena",
+            "tip2": "Eat to grow stronger",
+            "tip3": "Watch out for bigger snakes",
+            "tip4": "Use boost strategically",
+            "tip5": "Collect power-ups for special abilities"
+        }
+    },
+    "changelog": {
+        "title": "Changelog",
+        "subtitle": "Version history and updates",
+        "back": "Back",
+        "empty": "No changelog entries yet.",
+        "searchPlaceholder": "Search updates…",
+        "showing": "Showing {{shown}} of {{total}}",
+        "onePerLine": "one per line",
+        "developerButton": "Developer"
+    }
+}

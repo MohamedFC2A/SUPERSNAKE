@@ -1,0 +1,187 @@
+import { Vector2 } from '../utils/utils';
+
+/**
+ * InputManager - Handles keyboard, touch, and mouse inputs
+ */
+export class InputManager {
+    private keys: Map<string, boolean> = new Map();
+    private mousePosition: Vector2 = new Vector2();
+    private touchPosition: Vector2 | null = null;
+    private joystickDirection: Vector2 = new Vector2();
+    private joystickActive: boolean = false;
+    private boostPressed: boolean = false;
+
+    // Joystick configuration
+    private joystickCenter: Vector2 = new Vector2();
+    private joystickMaxRadius: number = 50;
+
+    private canvas: HTMLCanvasElement | null = null;
+
+    constructor() {
+        this.setupKeyboardListeners();
+        this.setupMouseListeners();
+        this.setupTouchListeners();
+    }
+
+    public setCanvas(canvas: HTMLCanvasElement): void {
+        this.canvas = canvas;
+    }
+
+    private setupKeyboardListeners(): void {
+        window.addEventListener('keydown', (e) => {
+            this.keys.set(e.code, true);
+
+            // Prevent default for game keys
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(e.code)) {
+                e.preventDefault();
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            this.keys.set(e.code, false);
+        });
+    }
+
+    private setupMouseListeners(): void {
+        window.addEventListener('mousemove', (e) => {
+            this.mousePosition.set(e.clientX, e.clientY);
+        });
+
+        window.addEventListener('mousedown', (e) => {
+            if (e.button === 0) { // Left click
+                this.boostPressed = true;
+            }
+        });
+
+        window.addEventListener('mouseup', (e) => {
+            if (e.button === 0) {
+                this.boostPressed = false;
+            }
+        });
+    }
+
+    private setupTouchListeners(): void {
+        window.addEventListener('touchstart', (e) => {
+            if (e.touches.length > 0) {
+                const touch = e.touches[0];
+                const x = touch.clientX;
+                const y = touch.clientY;
+
+                // Check if touch is in joystick area (bottom-left quadrant)
+                if (x < window.innerWidth / 2 && y > window.innerHeight / 2) {
+                    this.joystickCenter.set(x, y);
+                    this.joystickActive = true;
+                    this.touchPosition = new Vector2(x, y);
+                } else {
+                    // Touch in other areas = boost
+                    this.boostPressed = true;
+                }
+            }
+            e.preventDefault();
+        }, { passive: false });
+
+        window.addEventListener('touchmove', (e) => {
+            if (this.joystickActive && e.touches.length > 0) {
+                const touch = e.touches[0];
+                this.touchPosition = new Vector2(touch.clientX, touch.clientY);
+
+                // Calculate joystick direction
+                const delta = this.touchPosition.subtract(this.joystickCenter);
+                const distance = delta.magnitude();
+
+                if (distance > this.joystickMaxRadius) {
+                    this.joystickDirection = delta.normalize();
+                } else if (distance > 10) {
+                    this.joystickDirection = delta.divide(this.joystickMaxRadius);
+                } else {
+                    this.joystickDirection = Vector2.zero();
+                }
+            }
+            e.preventDefault();
+        }, { passive: false });
+
+        window.addEventListener('touchend', (e) => {
+            if (e.touches.length === 0) {
+                this.joystickActive = false;
+                this.joystickDirection = Vector2.zero();
+                this.touchPosition = null;
+                this.boostPressed = false;
+            }
+            e.preventDefault();
+        }, { passive: false });
+    }
+
+    /**
+     * Get movement direction from keyboard inputs
+     */
+    public getKeyboardDirection(): Vector2 {
+        const dir = new Vector2();
+
+        if (this.keys.get('KeyW') || this.keys.get('ArrowUp')) dir.y -= 1;
+        if (this.keys.get('KeyS') || this.keys.get('ArrowDown')) dir.y += 1;
+        if (this.keys.get('KeyA') || this.keys.get('ArrowLeft')) dir.x -= 1;
+        if (this.keys.get('KeyD') || this.keys.get('ArrowRight')) dir.x += 1;
+
+        return dir.magnitude() > 0 ? dir.normalize() : dir;
+    }
+
+    /**
+     * Get direction to mouse position relative to screen center
+     */
+    public getMouseDirection(screenCenter: Vector2): Vector2 {
+        const delta = this.mousePosition.subtract(screenCenter);
+        // Increase deadzone to avoid jitter when mouse is near center
+        return delta.magnitude() > 20 ? delta.normalize() : Vector2.zero();
+    }
+
+    /**
+     * Get combined input direction (keyboard + joystick)
+     */
+    public getDirection(screenCenter: Vector2): Vector2 {
+        // Keyboard takes priority
+        const keyDir = this.getKeyboardDirection();
+        if (keyDir.magnitude() > 0) {
+            return keyDir;
+        }
+
+        // Then joystick
+        if (this.joystickActive && this.joystickDirection.magnitude() > 0) {
+            return this.joystickDirection.normalize();
+        }
+
+        // Finally mouse
+        return this.getMouseDirection(screenCenter);
+    }
+
+    /**
+     * Check if boost is active
+     */
+    public isBoostPressed(): boolean {
+        return this.boostPressed || this.keys.get('Space') || false;
+    }
+
+    /**
+     * Get joystick state for rendering
+     */
+    public getJoystickState(): { active: boolean; center: Vector2; handle: Vector2 } {
+        return {
+            active: this.joystickActive,
+            center: this.joystickCenter,
+            handle: this.joystickCenter.add(this.joystickDirection.multiply(this.joystickMaxRadius)),
+        };
+    }
+
+    /**
+     * Check if device is touch-enabled
+     */
+    public isTouchDevice(): boolean {
+        return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    }
+
+    /**
+     * Clean up event listeners
+     */
+    public destroy(): void {
+        // Events are on window, they'll be cleaned up when page closes
+    }
+}

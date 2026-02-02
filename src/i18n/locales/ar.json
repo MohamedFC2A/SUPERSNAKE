@@ -1,0 +1,160 @@
+{
+    "app": {
+        "title": "الثعبان الناجي",
+        "subtitle": "ساحة البقاء"
+    },
+    "nav": {
+        "home": "الرئيسية",
+        "play": "ابدأ اللعب",
+        "changelog": "سجل التحديثات",
+        "settings": "الإعدادات",
+        "profile": "الملف الشخصي"
+    },
+    "menu": {
+        "title": "الثعبان الناجي",
+        "subtitle": "ساحة البقاء",
+        "play": "ابدأ اللعب",
+        "settings": "الإعدادات",
+        "changelog": "سجل التحديثات",
+        "enterName": "أدخل اسمك",
+        "highScore": "أعلى نتيجة",
+        "hint": "اضغط ENTER أو انقر على ابدأ اللعب للبدء"
+    },
+    "home": {
+        "feature1Title": "لعب كلاسيكي",
+        "feature1Desc": "لعبة الثعبان التي تحبها، بتصميم حديث",
+        "feature2Title": "منافسين آليين",
+        "feature2Desc": "تنافس ضد ثعابين ذكية في الساحة",
+        "feature3Title": "تتبع تقدمك",
+        "feature3Desc": "إحصائيات وأرقام قياسية وإنجازات"
+    },
+    "profile": {
+        "title": "الملف الشخصي",
+        "subtitle": "إحصائيات اللعب",
+        "localProfile": "ملف محلي (هذا الجهاز)",
+        "gamesPlayed": "الألعاب التي لعبتها",
+        "bestScore": "أفضل نتيجة",
+        "totalScore": "مجموع النقاط",
+        "longestSurvival": "أطول بقاء",
+        "highScoreDate": "تاريخ أعلى نتيجة",
+        "highScoreVersion": "إصدار أعلى نتيجة",
+        "memberSince": "يلعب منذ",
+        "lastPlayed": "آخر لعبة",
+        "localWarning": "الإحصائيات مخزنة محلياً على هذا الجهاز فقط"
+    },
+    "notFound": {
+        "message": "الصفحة غير موجودة",
+        "description": "الصفحة التي تبحث عنها غير موجودة.",
+        "goHome": "العودة للرئيسية"
+    },
+    "developer": {
+        "title": "وضع المطور (محلي)",
+        "warning": "⚠️ هذه ميزة للمطورين فقط. البيانات مخزنة محلياً وليست آمنة للإنتاج.",
+        "enterPassword": "أدخل كلمة مرور المطور",
+        "unlock": "فتح",
+        "wrongPassword": "كلمة مرور خاطئة",
+        "lockedOut": "محاولات كثيرة. حاول مرة أخرى بعد",
+        "attemptsRemaining": "المحاولات المتبقية: {{count}}",
+        "addEntry": "إضافة تحديث",
+        "editEntry": "تعديل التحديث",
+        "deleteEntry": "حذف التحديث",
+        "confirmDelete": "هل أنت متأكد من حذف هذا التحديث؟",
+        "resetSeed": "إعادة ضبط للبيانات الافتراضية",
+        "resetSeedConfirm": "هل أنت متأكد من إعادة كل التحديثات للبيانات الافتراضية؟ لا يمكن التراجع عن هذا.",
+        "version": "الإصدار",
+        "title_field": "العنوان",
+        "date": "التاريخ",
+        "description": "الوصف",
+        "added": "مضاف",
+        "changed": "معدّل",
+        "fixed": "مصلح",
+        "save": "حفظ",
+        "cancel": "إلغاء",
+        "logout": "خروج من وضع المطور"
+    },
+    "settings": {
+        "title": "الإعدادات",
+        "subtitle": "خصص تجربتك",
+        "saved": "تم الحفظ",
+        "reset": "إعادة الضبط",
+        "resetTitle": "إعادة ضبط الإعدادات؟",
+        "resetDescription": "سيتم استرجاع جميع الإعدادات إلى القيم الافتراضية.",
+        "resetConfirm": "إعادة الضبط",
+        "cancel": "إلغاء",
+        "audio": "الصوت",
+        "controls": "التحكم",
+        "graphics": "الرسومات",
+        "accessibility": "إمكانية الوصول",
+        "masterVolume": "مستوى الصوت الرئيسي",
+        "sfx": "المؤثرات الصوتية",
+        "sfxVolume": "مستوى المؤثرات الصوتية",
+        "vibration": "الاهتزاز",
+        "joystickSize": "حجم عصا التحكم",
+        "joystickPosition": "موضع عصا التحكم",
+        "left": "يسار",
+        "right": "يمين",
+        "sensitivity": "الحساسية",
+        "quality": "الجودة",
+        "low": "منخفضة",
+        "medium": "متوسطة",
+        "high": "عالية",
+        "particles": "تأثيرات الجزيئات",
+        "showGrid": "إظهار الشبكة",
+        "showMinimap": "إظهار الخريطة المصغرة",
+        "language": "اللغة",
+        "colorblindMode": "وضع عمى الألوان",
+        "none": "بدون",
+        "highContrast": "تباين عالي",
+        "reducedMotion": "تقليل الحركة",
+        "fontScale": "حجم الخط"
+    },
+    "hud": {
+        "score": "النقاط",
+        "mass": "الكتلة",
+        "rank": "الترتيب",
+        "boost": "تسريع"
+    },
+    "pause": {
+        "title": "إيقاف مؤقت",
+        "score": "النقاط",
+        "mass": "الكتلة",
+        "time": "الوقت",
+        "resume": "استئناف",
+        "restart": "إعادة البدء",
+        "settings": "الإعدادات",
+        "exitToMenu": "الخروج للقائمة"
+    },
+    "gameOver": {
+        "title": "انتهت اللعبة",
+        "killedBy": "قُتلت بواسطة",
+        "newHighScore": "رقم قياسي جديد!",
+        "finalScore": "النتيجة النهائية",
+        "peakMass": "أقصى كتلة",
+        "survivalTime": "وقت البقاء",
+        "kills": "القتلى",
+        "highScore": "أعلى نتيجة",
+        "playAgain": "العب مرة أخرى",
+        "share": "مشاركة",
+        "mainMenu": "القائمة الرئيسية"
+    },
+    "splash": {
+        "skip": "تخطي",
+        "tips": {
+            "tip1": "ابقَ على قيد الحياة في الساحة",
+            "tip2": "كُل لتصبح أقوى",
+            "tip3": "احذر من الثعابين الأكبر",
+            "tip4": "استخدم التسريع بذكاء",
+            "tip5": "اجمع التعزيزات للحصول على قدرات خاصة"
+        }
+    },
+    "changelog": {
+        "title": "سجل التحديثات",
+        "subtitle": "سجل الإصدارات والتحديثات",
+        "back": "رجوع",
+        "empty": "لا توجد تحديثات بعد.",
+        "searchPlaceholder": "ابحث في التحديثات…",
+        "showing": "عرض {{shown}} من {{total}}",
+        "onePerLine": "سطر لكل عنصر",
+        "developerButton": "المطور"
+    }
+}

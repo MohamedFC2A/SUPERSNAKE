@@ -1,0 +1,34 @@
+{
+    "entries": [
+        {
+            "version": "1.1.0",
+            "date": "February 2, 2026",
+            "added": [
+                "Full Arabic language support with RTL layout",
+                "Language selector in Settings → Accessibility",
+                "Changelog page accessible from main menu"
+            ],
+            "changed": [
+                "Redesigned UI with minimal dark-black theme",
+                "Replaced Orbitron/Rajdhani fonts with Inter/Cairo for better readability",
+                "Improved contrast and accessibility across all screens"
+            ],
+            "fixed": [
+                "Toggle switch now animates correctly in RTL mode",
+                "Focus states are now visible on dark backgrounds"
+            ]
+        },
+        {
+            "version": "1.0.0",
+            "date": "January 30, 2026",
+            "added": [
+                "Initial game release",
+                "Snake survival gameplay with bot AI opponents",
+                "Score tracking and high score persistence",
+                "Settings panel with graphics, audio, controls, and accessibility options",
+                "Mobile touch controls with virtual joystick",
+                "Minimap and leaderboard HUD elements"
+            ]
+        }
+    ]
+}
