@@ -11,9 +11,9 @@
 
 // ========== Constants ==========
 
-const SESSION_KEY = 'snake01.devModeUntil';
-const ATTEMPTS_KEY = 'snake01.devAttempts';
-const LOCKED_UNTIL_KEY = 'snake01.devLockedUntil';
+let expiresAtMs: number | null = null;
+let attemptsCount: number = 0;
+let lockedUntilMs: number | null = null;
 
 /** Session duration: 30 minutes */
 const SESSION_DURATION_MS = 30 * 60 * 1000;
@@ -27,79 +27,52 @@ const LOCKOUT_DURATION_MS = 30 * 1000;
 // ========== Session Management ==========
 
 export function isDevModeActive(): boolean {
-    const expiresAt = sessionStorage.getItem(SESSION_KEY);
-    if (!expiresAt) return false;
-
-    const expireTime = parseInt(expiresAt, 10);
-    if (isNaN(expireTime)) return false;
-
-    return Date.now() < expireTime;
+    return expiresAtMs !== null && Date.now() < expiresAtMs;
 }
 
 export function activateDevMode(): void {
-    const expiresAt = Date.now() + SESSION_DURATION_MS;
-    sessionStorage.setItem(SESSION_KEY, expiresAt.toString());
-    // Clear attempts on successful login
-    sessionStorage.removeItem(ATTEMPTS_KEY);
-    sessionStorage.removeItem(LOCKED_UNTIL_KEY);
+    expiresAtMs = Date.now() + SESSION_DURATION_MS;
+    attemptsCount = 0;
+    lockedUntilMs = null;
 }
 
 export function deactivateDevMode(): void {
-    sessionStorage.removeItem(SESSION_KEY);
+    expiresAtMs = null;
 }
 
 export function getSessionTimeRemaining(): number {
-    const expiresAt = sessionStorage.getItem(SESSION_KEY);
-    if (!expiresAt) return 0;
-
-    const expireTime = parseInt(expiresAt, 10);
-    if (isNaN(expireTime)) return 0;
-
-    return Math.max(0, expireTime - Date.now());
+    if (expiresAtMs === null) return 0;
+    return Math.max(0, expiresAtMs - Date.now());
 }
 
 // ========== Rate Limiting ==========
 
 export function getAttempts(): number {
-    const attempts = sessionStorage.getItem(ATTEMPTS_KEY);
-    return attempts ? parseInt(attempts, 10) || 0 : 0;
+    return attemptsCount;
 }
 
 function setAttempts(count: number): void {
-    sessionStorage.setItem(ATTEMPTS_KEY, count.toString());
+    attemptsCount = count;
 }
 
 export function isLockedOut(): boolean {
-    const lockedUntil = sessionStorage.getItem(LOCKED_UNTIL_KEY);
-    if (!lockedUntil) return false;
-
-    const lockTime = parseInt(lockedUntil, 10);
-    if (isNaN(lockTime)) return false;
-
-    if (Date.now() >= lockTime) {
-        // Lock expired, clear it
-        sessionStorage.removeItem(LOCKED_UNTIL_KEY);
-        sessionStorage.removeItem(ATTEMPTS_KEY);
+    if (lockedUntilMs === null) return false;
+    if (Date.now() >= lockedUntilMs) {
+        lockedUntilMs = null;
+        attemptsCount = 0;
         return false;
     }
-
     return true;
 }
 
 export function getLockoutTimeRemaining(): number {
-    const lockedUntil = sessionStorage.getItem(LOCKED_UNTIL_KEY);
-    if (!lockedUntil) return 0;
-
-    const lockTime = parseInt(lockedUntil, 10);
-    if (isNaN(lockTime)) return 0;
-
-    return Math.max(0, lockTime - Date.now());
+    if (lockedUntilMs === null) return 0;
+    return Math.max(0, lockedUntilMs - Date.now());
 }
 
 function triggerLockout(): void {
-    const lockedUntil = Date.now() + LOCKOUT_DURATION_MS;
-    sessionStorage.setItem(LOCKED_UNTIL_KEY, lockedUntil.toString());
-    sessionStorage.setItem(ATTEMPTS_KEY, '0');
+    lockedUntilMs = Date.now() + LOCKOUT_DURATION_MS;
+    attemptsCount = 0;
 }
 
 // ========== Password Verification ==========

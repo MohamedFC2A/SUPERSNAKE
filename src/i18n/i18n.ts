@@ -17,7 +17,6 @@ type Translations = { [key: string]: TranslationValue };
 
 const translations: Record<Locale, Translations> = { en, ar };
 
-const STORAGE_KEY = 'snake-survival-language';
 const RTL_LOCALES: Locale[] = ['ar'];
 
 let currentLocale: Locale = 'en';
@@ -27,16 +26,10 @@ const listeners: Set<(locale: Locale) => void> = new Set();
  * Initialize i18n - call this on app startup
  */
 export function initI18n(): void {
-    // Try to load from storage
-    const stored = localStorage.getItem(STORAGE_KEY) as Locale | null;
-    if (stored && translations[stored]) {
-        currentLocale = stored;
-    } else {
-        // Auto-detect from browser
-        const browserLang = navigator.language.split('-')[0];
-        if (browserLang === 'ar') {
-            currentLocale = 'ar';
-        }
+    // Auto-detect from browser (no local persistence)
+    const browserLang = navigator.language.split('-')[0];
+    if (browserLang === 'ar') {
+        currentLocale = 'ar';
     }
     applyLocale();
 }
@@ -92,7 +85,6 @@ export function setLocale(locale: Locale): void {
         return;
     }
     currentLocale = locale;
-    localStorage.setItem(STORAGE_KEY, locale);
     applyLocale();
     notifyListeners();
 }

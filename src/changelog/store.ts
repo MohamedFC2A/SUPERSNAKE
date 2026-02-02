@@ -130,22 +130,7 @@ class ChangelogStoreImpl implements ChangelogStore {
     }
 
     private load(): ChangelogStoreData {
-        try {
-            const stored = localStorage.getItem(STORAGE_KEY);
-            if (stored) {
-                const parsed = JSON.parse(stored) as ChangelogStoreData;
-                // Migration check
-                if (parsed.schemaVersion === SCHEMA_VERSION) {
-                    return parsed;
-                }
-                // Future: handle migrations here
-                console.warn('Changelog schema version mismatch, resetting to seed');
-            }
-        } catch (e) {
-            console.warn('Failed to load changelog from localStorage:', e);
-        }
-
-        // Initialize with seed data
+        // No local persistence: always start from seed data in-memory.
         return this.createSeedData();
     }
 
@@ -159,17 +144,12 @@ class ChangelogStoreImpl implements ChangelogStore {
             schemaVersion: SCHEMA_VERSION,
             entries
         };
-
-        this.save(data);
         return data;
     }
 
     private save(data: ChangelogStoreData): void {
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-        } catch (e) {
-            console.error('Failed to save changelog to localStorage:', e);
-        }
+        // No local persistence (in-memory only)
+        void data;
     }
 
     private notify(): void {

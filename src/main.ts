@@ -18,6 +18,36 @@ import { NotFoundPage } from './ui/pages/NotFoundPage';
  * Snake Survival Game - Entry Point with Router
  */
 function main(): void {
+    // Disable runtime caching to avoid stale builds (and to avoid local caching as requested).
+    if (!import.meta.env.DEV) {
+        void (async () => {
+            try {
+                // Clear localStorage (best-effort; may throw in some privacy modes)
+                localStorage.clear();
+            } catch {
+                // ignore
+            }
+
+            try {
+                if ('serviceWorker' in navigator) {
+                    const regs = await navigator.serviceWorker.getRegistrations();
+                    await Promise.all(regs.map((r) => r.unregister()));
+                }
+            } catch {
+                // ignore
+            }
+
+            try {
+                if ('caches' in window) {
+                    const keys = await caches.keys();
+                    await Promise.all(keys.map((k) => caches.delete(k)));
+                }
+            } catch {
+                // ignore
+            }
+        })();
+    }
+
     // Initialize i18n (must be before UI)
     initI18n();
 
@@ -127,12 +157,7 @@ function main(): void {
     // PWA: capture install prompt for mobile "install required" flow
     window.addEventListener('beforeinstallprompt', captureBeforeInstallPrompt as any);
 
-    // PWA: register service worker (production only)
-    if ('serviceWorker' in navigator && !import.meta.env.DEV) {
-        navigator.serviceWorker.register('/sw.js').catch(() => {
-            // Ignore SW errors (still usable online)
-        });
-    }
+    // NOTE: Service worker is intentionally NOT registered to prevent stale-cache issues.
 
     // Debug: Show FPS in development
     if (import.meta.env.DEV) {

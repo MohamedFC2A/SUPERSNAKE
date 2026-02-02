@@ -1,20 +1,13 @@
 export const AUTH_ERROR_STORAGE_KEY = 'supersnake.authError';
 
+let lastAuthError: string | null = null;
+
 export function setAuthError(message: string): void {
-  try {
-    sessionStorage.setItem(AUTH_ERROR_STORAGE_KEY, message);
-  } catch {
-    // ignore
-  }
+  lastAuthError = message;
 }
 
 export function takeAuthError(): string | null {
-  try {
-    const msg = sessionStorage.getItem(AUTH_ERROR_STORAGE_KEY);
-    if (msg) sessionStorage.removeItem(AUTH_ERROR_STORAGE_KEY);
-    return msg;
-  } catch {
-    return null;
-  }
+  const msg = lastAuthError;
+  lastAuthError = null;
+  return msg;
 }
-

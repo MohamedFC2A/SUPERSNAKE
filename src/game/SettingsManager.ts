@@ -35,8 +35,6 @@ type DeepPartial<T> = {
 
 export type SettingsChangeCallback = (settings: GameSettings) => void;
 
-const STORAGE_KEY = 'snake-survival-settings';
-
 const DEFAULT_SETTINGS: GameSettings = {
     graphics: {
         quality: 'high',
@@ -74,15 +72,6 @@ export class SettingsManager {
     }
 
     private loadSettings(): GameSettings {
-        try {
-            const stored = localStorage.getItem(STORAGE_KEY);
-            if (stored) {
-                const parsed = JSON.parse(stored);
-                return this.mergeSettings(DEFAULT_SETTINGS, parsed);
-            }
-        } catch (e) {
-            console.warn('Failed to load settings:', e);
-        }
         return { ...DEFAULT_SETTINGS };
     }
 
@@ -96,11 +85,7 @@ export class SettingsManager {
     }
 
     private saveSettings(): void {
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(this.settings));
-        } catch (e) {
-            console.warn('Failed to save settings:', e);
-        }
+        // No local persistence (in-memory only)
     }
 
     private applySettings(): void {

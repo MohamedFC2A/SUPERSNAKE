@@ -51,7 +51,21 @@ async function handleOAuthCallbackIfPresent(): Promise<void> {
   if (!supabase) return;
 
   const url = new URL(window.location.href);
-  const params = url.searchParams;
+
+  // Support both:
+  // - /auth/callback?code=...
+  // - /#/auth/callback?code=...  (code lives inside the hash query)
+  const getOAuthParams = (): URLSearchParams => {
+    if (url.searchParams.has('code') || url.searchParams.has('error') || url.searchParams.has('error_description')) {
+      return url.searchParams;
+    }
+    const hash = window.location.hash || '';
+    const qIndex = hash.indexOf('?');
+    if (qIndex === -1) return new URLSearchParams();
+    return new URLSearchParams(hash.slice(qIndex + 1));
+  };
+
+  const params = getOAuthParams();
   const code = params.get('code');
   const error = params.get('error');
   const errorDescription = params.get('error_description');
@@ -59,7 +73,11 @@ async function handleOAuthCallbackIfPresent(): Promise<void> {
   // If an OAuth error is present, clear URL params so the app doesn't get stuck.
   if (error || errorDescription) {
     setAuthError((errorDescription || error || 'Sign-in failed').toString());
+    // Clear both search and hash query.
     url.search = '';
+    if (window.location.hash.includes('?')) {
+      window.location.hash = window.location.hash.split('?')[0] || '';
+    }
     window.history.replaceState({}, '', url.toString());
     return;
   }
@@ -82,13 +100,17 @@ async function handleOAuthCallbackIfPresent(): Promise<void> {
     setAuthError('Sign-in failed (session exchange)');
     setState({ loading: false });
   } finally {
-    // Remove code param from URL
+    // Remove code param from URL (search + hash query)
     url.search = '';
+    if (window.location.hash.includes('?')) {
+      window.location.hash = window.location.hash.split('?')[0] || '';
+    }
     window.history.replaceState({}, '', url.toString());
 
-    // If we used a dedicated callback URL, route the user into the SPA profile page.
+    // If we used a dedicated callback URL, route the user into the SPA profile page
+    // without forcing a full page reload (helps keep session/storage stable).
     if (window.location.pathname.endsWith('/auth/callback')) {
-      window.location.replace('/#/profile');
+      window.location.hash = '/profile';
     }
   }
 }

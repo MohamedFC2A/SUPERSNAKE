@@ -1,7 +1,7 @@
 /**
- * ChangelogManager - CRUD operations for changelog entries with localStorage persistence
+ * ChangelogManager - CRUD operations for changelog entries (in-memory only)
  * 
- * ⚠️ DEV-ONLY: This is a client-side implementation using localStorage.
+ * ⚠️ DEV-ONLY: This is a client-side implementation.
  * Data is NOT secure and can be accessed/modified by anyone inspecting the browser.
  * Do NOT use this for production admin features.
  */
@@ -18,7 +18,6 @@ export interface ChangelogEntry {
     removed?: string[];
 }
 
-const STORAGE_KEY = 'snake-survival-changelog';
 const SEEDED_KEY = 'snake-survival-changelog-seeded';
 
 // SHA-256 hash of "2008" - still extractable but not plain text
@@ -50,30 +49,18 @@ export class ChangelogManager {
     }
 
     private loadEntries(): void {
-        try {
-            const stored = localStorage.getItem(STORAGE_KEY);
-            if (stored) {
-                this.entries = JSON.parse(stored);
-            }
-        } catch (e) {
-            console.warn('Failed to load changelog entries:', e);
-            this.entries = [];
-        }
+        this.entries = [];
     }
 
     private saveEntries(): void {
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(this.entries));
-        } catch (e) {
-            console.warn('Failed to save changelog entries:', e);
-        }
+        // No local persistence (in-memory only)
     }
 
     /**
      * Check if entries have been seeded from JSON
      */
     isSeeded(): boolean {
-        return localStorage.getItem(SEEDED_KEY) === 'true';
+        return false;
     }
 
     /**
@@ -90,7 +77,7 @@ export class ChangelogManager {
         }));
 
         this.saveEntries();
-        localStorage.setItem(SEEDED_KEY, 'true');
+        void SEEDED_KEY;
         this.notifyListeners();
     }
 

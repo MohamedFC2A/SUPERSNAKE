@@ -1,18 +1,12 @@
-/* Simple runtime-caching service worker for a Vite static build.
-   Note: This is not a full precache setup, but it enables installability
-   and offline-ish behavior by caching visited assets. */
+/* Service worker shutdown script.
+   The app no longer uses a service worker because runtime caching caused stale builds.
+   This SW exists only to unregister older installs and clear caches. */
 
-const CACHE_NAME = 'supersnake-runtime-v1';
+const CACHE_NAME = 'supersnake-runtime-v3-shutdown';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     (async () => {
-      const cache = await caches.open(CACHE_NAME);
-      await cache.addAll([
-        '/',
-        '/index.html',
-        '/manifest.webmanifest',
-      ]);
       self.skipWaiting();
     })()
   );
@@ -21,40 +15,24 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
+      // Remove all caches created by previous versions.
       const keys = await caches.keys();
-      await Promise.all(keys.map((k) => (k === CACHE_NAME ? Promise.resolve() : caches.delete(k))));
+      await Promise.all(keys.map((k) => caches.delete(k)));
+
       self.clients.claim();
-    })()
-  );
-});
 
-self.addEventListener('fetch', (event) => {
-  const req = event.request;
-  if (req.method !== 'GET') return;
-
-  const url = new URL(req.url);
-  if (url.origin !== self.location.origin) return;
-
-  event.respondWith(
-    (async () => {
-      const cache = await caches.open(CACHE_NAME);
-      const cached = await cache.match(req);
-      if (cached) return cached;
-
+      // Unregister this SW so the app runs without local caching.
       try {
-        const fresh = await fetch(req);
-        if (fresh && fresh.ok && fresh.type === 'basic') {
-          cache.put(req, fresh.clone());
-        }
-        return fresh;
-      } catch (e) {
-        if (req.mode === 'navigate') {
-          const fallback = await cache.match('/index.html');
-          if (fallback) return fallback;
-        }
-        throw e;
+        await self.registration.unregister();
+      } catch {
+        // ignore
       }
     })()
   );
 });
 
+self.addEventListener('fetch', (event) => {
+  // Network-only: no runtime caching.
+  if (event.request.method !== 'GET') return;
+  event.respondWith(fetch(event.request));
+});

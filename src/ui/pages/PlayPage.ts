@@ -52,6 +52,7 @@ export class PlayPage {
     // Mobile controls
     private joystick: VirtualJoystick | null = null;
     private boostButton: BoostButton | null = null;
+    private lastPlayerName: string = 'Player';
 
     // Update loop
     private updateLoopId: number | null = null;
@@ -78,8 +79,8 @@ export class PlayPage {
      * Show the "Enter your name" start screen
      */
     private showStartScreen(): void {
-        // Get saved player name
-        const savedName = localStorage.getItem('snake01.playerName') || '';
+        // No local persistence
+        const savedName = this.lastPlayerName || '';
         const mobile = isMobileLike();
 
         this.container.innerHTML = `
@@ -141,14 +142,14 @@ export class PlayPage {
 
         startBtn?.addEventListener('click', () => {
             const name = nameInput?.value.trim() || 'Player';
-            localStorage.setItem('snake01.playerName', name);
+            this.lastPlayerName = name;
             this.startGame(name);
         });
 
         nameInput?.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 const name = nameInput.value.trim() || 'Player';
-                localStorage.setItem('snake01.playerName', name);
+                this.lastPlayerName = name;
                 this.startGame(name);
             }
         });
@@ -722,8 +723,7 @@ export class PlayPage {
 
         // Setup events
         this.container.querySelector('#playAgainBtn')?.addEventListener('click', () => {
-            const savedName = localStorage.getItem('snake01.playerName') || 'Player';
-            this.startGame(savedName);
+            this.startGame(this.lastPlayerName || 'Player');
         });
 
         this.container.querySelector('#mainMenuBtn')?.addEventListener('click', () => {

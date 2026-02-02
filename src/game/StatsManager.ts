@@ -14,7 +14,6 @@ export interface GameStats {
     lastPlayedAt: string | null;
 }
 
-const STORAGE_KEY = 'snake-survival-stats';
 const GAME_VERSION = '1.1.0';
 
 function generateUUID(): string {
@@ -34,27 +33,6 @@ export class StatsManager {
     }
 
     private loadStats(): GameStats {
-        try {
-            const stored = localStorage.getItem(STORAGE_KEY);
-            if (stored) {
-                const parsed = JSON.parse(stored);
-                // Ensure all fields exist
-                return {
-                    userId: parsed.userId || generateUUID(),
-                    gamesPlayed: parsed.gamesPlayed || 0,
-                    bestScore: parsed.bestScore || 0,
-                    totalScore: parsed.totalScore || 0,
-                    longestSurvivalMs: parsed.longestSurvivalMs || 0,
-                    highScoreDate: parsed.highScoreDate || null,
-                    highScoreVersion: parsed.highScoreVersion || GAME_VERSION,
-                    createdAt: parsed.createdAt || new Date().toISOString(),
-                    lastPlayedAt: parsed.lastPlayedAt || null,
-                };
-            }
-        } catch (e) {
-            console.warn('Failed to load stats:', e);
-        }
-
         // Return default stats with new UUID
         return {
             userId: generateUUID(),
@@ -70,11 +48,7 @@ export class StatsManager {
     }
 
     private saveStats(): void {
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(this.stats));
-        } catch (e) {
-            console.warn('Failed to save stats:', e);
-        }
+        // No local persistence (in-memory only)
     }
 
     /**
