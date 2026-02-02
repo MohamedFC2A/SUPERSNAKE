@@ -99,11 +99,6 @@ export class SettingsPage {
                         <span class="tab-icon">🖼️</span>
                         <span>${t('settings.graphics')}</span>
                     </button>
-                    <button class="settings-tab${this.activeTab === 'accessibility' ? ' active' : ''}" 
-                            data-tab="accessibility" role="tab" aria-selected="${this.activeTab === 'accessibility'}">
-                        <span class="tab-icon">♿</span>
-                        <span>${t('settings.accessibility')}</span>
-                    </button>
                 </div>
 
                 <div class="settings-body">
@@ -152,8 +147,6 @@ export class SettingsPage {
                 return this.renderControlsTab(settings);
             case 'graphics':
                 return this.renderGraphicsTab(settings);
-            case 'accessibility':
-                return this.renderAccessibilityTab(settings);
             default:
                 return '';
         }
@@ -237,6 +230,7 @@ export class SettingsPage {
     }
 
     private renderGraphicsTab(settings: GameSettings): string {
+        const currentLocale = getLocale();
         return `
             <div class="settings-section">
                     <div class="setting-row">
@@ -270,13 +264,9 @@ export class SettingsPage {
                     </label>
                 </div>
             </div>
-        `;
-    }
 
-    private renderAccessibilityTab(settings: GameSettings): string {
-        const currentLocale = getLocale();
-        return `
             <div class="settings-section">
+                <div class="section-title" style="margin-bottom: 10px;">${t('settings.accessibility')}</div>
                 <div class="setting-row">
                     <span class="setting-label">${t('settings.language')}</span>
                     <select class="setting-select" id="language">

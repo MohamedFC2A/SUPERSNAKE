@@ -38,6 +38,13 @@ function setState(next: Partial<AuthState>): void {
   listeners.forEach((l) => l(state));
 }
 
+function patchProfile(partial: Partial<ProfileRow> & { id?: string }): void {
+  const userId = state.user?.id || partial.id;
+  if (!userId) return;
+  const base: ProfileRow = state.profile ?? { id: userId, username: null, avatar_url: null };
+  setState({ profile: { ...base, ...partial, id: userId } });
+}
+
 export function getAuthDebugSnapshot(): Record<string, any> {
   const href = typeof window !== 'undefined' ? window.location.href : null;
   const origin = typeof window !== 'undefined' ? window.location.origin : null;
@@ -280,6 +287,8 @@ export async function updateTheme(theme: 'dark' | 'light'): Promise<void> {
   if (!user) return;
 
   const clean = theme === 'light' ? 'light' : 'dark';
+  // Optimistic update so UI doesn't "snap back" before the profile refresh finishes.
+  patchProfile({ id: user.id, theme: clean });
   try {
     await supabase.from('profiles').upsert({ id: user.id, theme: clean }, { onConflict: 'id' });
   } catch {
@@ -293,6 +302,8 @@ export async function updateProfileSettings(settings: unknown): Promise<void> {
   const user = state.user;
   if (!user) return;
 
+  // Optimistic update so UI doesn't revert while saving.
+  patchProfile({ id: user.id, settings });
   try {
     await supabase.from('profiles').upsert({ id: user.id, settings }, { onConflict: 'id' });
   } catch {
