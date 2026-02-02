@@ -6,6 +6,7 @@ import { SettingsManager } from './game/SettingsManager';
 import { getAudioManager } from './audio';
 import { captureBeforeInstallPrompt } from './pwa/install';
 import { initAuth } from './supabase';
+import { applyTheme } from './theme/theme';
 import { HomePage } from './ui/pages/HomePage';
 import { PlayPage } from './ui/pages/PlayPage';
 import { LeaderboardsPage } from './ui/pages/LeaderboardsPage';
@@ -13,6 +14,8 @@ import { ProfilePage } from './ui/pages/ProfilePage';
 import { SettingsPage } from './ui/pages/SettingsPage';
 import { ChangelogPage } from './ui/pages/ChangelogPage';
 import { NotFoundPage } from './ui/pages/NotFoundPage';
+import { AuthRequiredPage } from './ui/pages/AuthRequiredPage';
+import { getAuthState, subscribeAuth } from './supabase';
 
 /**
  * Snake Survival Game - Entry Point with Router
@@ -64,6 +67,9 @@ function main(): void {
     // Supabase auth (optional; requires VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY)
     initAuth();
 
+    // Default theme (may be overridden by profile after sign-in)
+    applyTheme('dark');
+
     // Subscribe to settings changes
     settingsManager.subscribe((newSettings) => {
         audioManager.setEnabled(newSettings.audio.sfxEnabled);
@@ -92,16 +98,39 @@ function main(): void {
     // Store references for cleanup
     let currentPlayPage: PlayPage | null = null;
 
+    // Mandatory login: re-render nav + redirect away from protected routes when signed out.
+    const protectedPaths = new Set(['/','/play','/leaderboards','/changelog','/settings']);
+    subscribeAuth((auth) => {
+        const theme = auth.profile?.theme === 'light' ? 'light' : 'dark';
+        applyTheme(theme);
+        const path = router.getCurrentPath() || '/';
+        if (!auth.user && protectedPaths.has(path)) {
+            router.navigate('/profile');
+        }
+    });
+
+    const requireAuth = (factory: () => HTMLElement): HTMLElement => {
+        const auth = getAuthState();
+        if (!auth.user) return new AuthRequiredPage().getElement();
+        return factory();
+    };
+
     // Register routes
     router
         .register('/', () => {
             layout.show();
             layout.setNavVisible(true);
-            return new HomePage().getElement();
+            return requireAuth(() => new HomePage().getElement());
         }, 'Home')
 
         .register('/play', () => {
             // Hide navigation for immersive gameplay
+            // If signed out, show gate UI instead of game.
+            if (!getAuthState().user) {
+                layout.show();
+                layout.setNavVisible(true);
+                return new AuthRequiredPage().getElement();
+            }
             layout.setNavVisible(false);
 
             // Cleanup previous play page if exists
@@ -115,19 +144,19 @@ function main(): void {
         .register('/leaderboards', () => {
             layout.show();
             layout.setNavVisible(true);
-            return new LeaderboardsPage().getElement();
+            return requireAuth(() => new LeaderboardsPage().getElement());
         }, 'Leaderboards')
 
         .register('/changelog', () => {
             layout.show();
             layout.setNavVisible(true);
-            return new ChangelogPage().getElement();
+            return requireAuth(() => new ChangelogPage().getElement());
         }, 'Changelog')
 
         .register('/settings', () => {
             layout.show();
             layout.setNavVisible(true);
-            return new SettingsPage(settingsManager).getElement();
+            return requireAuth(() => new SettingsPage(settingsManager).getElement());
         }, 'Settings')
 
         .register('/profile', () => {

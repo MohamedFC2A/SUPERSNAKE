@@ -46,7 +46,6 @@
         "username": "Username",
         "save": "Save",
         "cloudBest": "Best Score (Online)",
-        "localProfile": "Local Profile (this device)",
         "gamesPlayed": "Games Played",
         "bestScore": "Best Score",
         "totalScore": "Total Score",
@@ -54,8 +53,13 @@
         "highScoreDate": "High Score Date",
         "highScoreVersion": "High Score Version",
         "memberSince": "Playing Since",
-        "lastPlayed": "Last Played",
-        "localWarning": "Stats are stored locally on this device only"
+        "lastPlayed": "Last Played"
+    },
+    "auth": {
+        "requiredTitle": "Sign in required",
+        "requiredSubtitle": "You must sign in to use the game.",
+        "requiredPanelTitle": "Continue with Google",
+        "requiredPanelText": "Sign in to play, save your profile, and appear on the leaderboards."
     },
     "leaderboards": {
         "title": "Leaderboards",
@@ -111,6 +115,9 @@
         "controls": "Controls",
         "graphics": "Graphics",
         "accessibility": "Accessibility",
+        "theme": "Theme",
+        "themeDark": "Dark",
+        "themeLight": "Light",
         "masterVolume": "Master Volume",
         "sfx": "Sound Effects",
         "sfxVolume": "SFX Volume",

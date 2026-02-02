@@ -6,6 +6,7 @@ export interface ProfileRow {
   id: string;
   username: string | null;
   avatar_url: string | null;
+  theme?: 'dark' | 'light' | null;
   updated_at?: string | null;
 }
 
@@ -81,7 +82,7 @@ async function loadProfile(userId: string): Promise<ProfileRow | null> {
   try {
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, username, avatar_url, updated_at')
+      .select('id, username, avatar_url, theme, updated_at')
       .eq('id', userId)
       .maybeSingle();
 
@@ -266,6 +267,20 @@ export async function updateUsername(username: string): Promise<void> {
 
   try {
     await supabase.from('profiles').upsert({ id: user.id, username: clean }, { onConflict: 'id' });
+  } catch {
+    // ignore
+  }
+  loadProfileInBackground(user.id);
+}
+
+export async function updateTheme(theme: 'dark' | 'light'): Promise<void> {
+  if (!supabase) return;
+  const user = state.user;
+  if (!user) return;
+
+  const clean = theme === 'light' ? 'light' : 'dark';
+  try {
+    await supabase.from('profiles').upsert({ id: user.id, theme: clean }, { onConflict: 'id' });
   } catch {
     // ignore
   }

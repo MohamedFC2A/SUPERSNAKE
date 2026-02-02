@@ -1,7 +1,6 @@
 import { t, onLocaleChange } from '../../i18n';
 import { Game } from '../../game/Game';
 import { SettingsManager } from '../../game/SettingsManager';
-import { getStatsManager } from '../../game/StatsManager';
 import { getRouter } from '../../router';
 import { getAudioManager } from '../../audio';
 import { VirtualJoystick } from '../../ui/controls/VirtualJoystick';
@@ -11,7 +10,7 @@ import { MiniMap } from '../../ui/hud/MiniMap';
 import { Config } from '../../config';
 import { Vector2 } from '../../utils/utils';
 import { getDeferredInstallPrompt, isMobileLike, isStandaloneMode, promptInstallIfAvailable } from '../../pwa/install';
-import { getAuthState, submitScore, subscribeAuth } from '../../supabase';
+import { getAuthState, submitGameSession, submitScore, subscribeAuth } from '../../supabase';
 
 /**
  * PlayPage - Hosts the game canvas and controls
@@ -797,8 +796,8 @@ export class PlayPage {
         const score = player?.score || 0;
         const survivalTime = Date.now() - this.gameStartTime;
 
-        // Record stats
-        getStatsManager().recordGameEnd(score, survivalTime);
+        // Cloud stats (mandatory login)
+        void submitGameSession(score, survivalTime);
 
         // Cloud leaderboard (optional)
         void submitScore(score, this.game.getPlayerName());
@@ -895,7 +894,7 @@ export class PlayPage {
             const player = this.game.getPlayer();
             if (player) {
                 const survivalTime = Date.now() - this.gameStartTime;
-                getStatsManager().recordGameEnd(player.score, survivalTime);
+                void submitGameSession(player.score, survivalTime);
                 void submitScore(player.score, this.game.getPlayerName());
             }
         }

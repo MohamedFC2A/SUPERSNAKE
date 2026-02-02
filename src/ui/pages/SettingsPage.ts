@@ -2,6 +2,9 @@ import { t, onLocaleChange } from '../../i18n';
 import { SettingsManager, GameSettings } from '../../game/SettingsManager';
 import { setLocale, getLocale } from '../../i18n';
 import { applyUpdate, checkForUpdate } from '../../update/appUpdate';
+import { getAuthState, updateTheme } from '../../supabase';
+import { applyTheme, type Theme } from '../../theme/theme';
+import { subscribeAuth } from '../../supabase';
 
 /**
  * SettingsPage - Full page settings with all options
@@ -17,6 +20,7 @@ export class SettingsPage {
     private checkingUpdate: boolean = false;
     private updateError: string | null = null;
     private onVisibilityChange: (() => void) | null = null;
+    private unsubscribeAuth: (() => void) | null = null;
 
     constructor(settingsManager: SettingsManager) {
         this.settingsManager = settingsManager;
@@ -35,6 +39,10 @@ export class SettingsPage {
         };
         document.addEventListener('visibilitychange', handler);
         this.onVisibilityChange = () => document.removeEventListener('visibilitychange', handler);
+
+        this.unsubscribeAuth = subscribeAuth(() => {
+            this.updateContent();
+        });
     }
 
     private async checkUpdatesIfNeeded(): Promise<void> {
@@ -56,6 +64,7 @@ export class SettingsPage {
 
     private updateContent(): void {
         const settings = this.settingsManager.getSettings();
+        const currentTheme: Theme = (getAuthState().profile?.theme === 'light' ? 'light' : 'dark');
 
         this.container.innerHTML = `
             <div class="page-header page-header-split">
@@ -99,6 +108,16 @@ export class SettingsPage {
 
                 <div class="settings-body">
                     ${this.renderTabContent(settings)}
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <div class="setting-row">
+                    <span class="setting-label">${t('settings.theme')}</span>
+                    <select class="setting-select" id="theme">
+                        <option value="dark" ${currentTheme === 'dark' ? 'selected' : ''}>${t('settings.themeDark')}</option>
+                        <option value="light" ${currentTheme === 'light' ? 'selected' : ''}>${t('settings.themeLight')}</option>
+                    </select>
                 </div>
             </div>
 
@@ -434,6 +453,12 @@ export class SettingsPage {
             case 'fontScale':
                 this.settingsManager.updateSettings({ accessibility: { ...settings.accessibility, fontScale: value as number } });
                 break;
+            case 'theme': {
+                const theme = (value === 'light' ? 'light' : 'dark') as Theme;
+                applyTheme(theme);
+                void updateTheme(theme);
+                break;
+            }
         }
 
         this.showSavedHint();
@@ -484,6 +509,7 @@ export class SettingsPage {
     destroy(): void {
         this.unsubscribeLocale?.();
         this.onVisibilityChange?.();
+        this.unsubscribeAuth?.();
         if (this.savedHintTimeout) {
             window.clearTimeout(this.savedHintTimeout);
             this.savedHintTimeout = null;

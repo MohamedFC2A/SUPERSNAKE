@@ -26,6 +26,7 @@
   --ui-border: #222222;
   --ui-border-hover: #333333;
   --ui-divider: #1A1A1A;
+  --ui-hover: rgba(255, 255, 255, 0.06);
 
   /* Text Colors */
   --text-primary: #EDEDED;
@@ -125,6 +126,12 @@ body {
   touch-action: manipulation;
 }
 
+/* iOS safe areas */
+body {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
 #app {
   width: 100%;
   height: 100%;
@@ -137,6 +144,36 @@ body {
   height: 100%;
   background: var(--bg-primary);
   touch-action: none;
+}
+
+/* Light Theme */
+html[data-theme="light"] {
+  --accent: #2563EB;
+  --accent-hover: #1D4ED8;
+  --accent-muted: rgba(37, 99, 235, 0.14);
+
+  --color-success: #16A34A;
+  --color-warning: #D97706;
+  --color-danger: #DC2626;
+  --color-gold: #CA8A04;
+
+  --bg-primary: #F7F7F7;
+  --bg-secondary: #FFFFFF;
+  --bg-elevated: #FFFFFF;
+  --bg-surface: #FFFFFF;
+
+  --ui-panel: rgba(255, 255, 255, 0.92);
+  --ui-panel-solid: #FFFFFF;
+  --ui-border: #E5E7EB;
+  --ui-border-hover: #D1D5DB;
+  --ui-divider: #E5E7EB;
+  --ui-hover: rgba(0, 0, 0, 0.04);
+
+  --text-primary: #0B0B0B;
+  --text-secondary: #374151;
+  --text-muted: #6B7280;
+
+  --focus-ring: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent);
 }
 
 #ui-layer {
@@ -1644,8 +1681,8 @@ select:focus-visible {
   flex-shrink: 0;
   position: sticky;
   top: 0;
-  background: rgba(0, 0, 0, 0.82);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--ui-panel);
+  border-bottom: 1px solid var(--ui-border);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
 }
@@ -1716,15 +1753,15 @@ select:focus-visible {
 }
 
 .nav-link:hover {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.10);
+  background: var(--ui-hover);
+  border-color: var(--ui-border-hover);
   color: var(--text-primary);
 }
 
 .nav-link.active {
   background: rgba(59, 130, 246, 0.14);
   border-color: rgba(59, 130, 246, 0.25);
-  color: rgba(220, 235, 255, 0.98);
+  color: var(--text-primary);
 }
 
 .nav-link-primary {

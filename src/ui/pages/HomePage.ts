@@ -1,6 +1,5 @@
 import { t, onLocaleChange } from '../../i18n';
 import { getRouter } from '../../router';
-import { getStatsManager } from '../../game/StatsManager';
 
 /**
  * HomePage - Landing page with game summary and CTAs
@@ -20,8 +19,6 @@ export class HomePage {
     }
 
     private updateContent(): void {
-        const stats = getStatsManager().getStats();
-
         this.container.innerHTML = `
             <div class="home-hero">
                 <div class="home-logo">
@@ -29,13 +26,6 @@ export class HomePage {
                 </div>
                 <h1 class="home-title">${t('menu.title')}</h1>
                 <p class="home-subtitle">${t('menu.subtitle')}</p>
-                
-                ${stats.bestScore > 0 ? `
-                    <div class="home-highscore">
-                        <span class="highscore-label">${t('menu.highScore')}</span>
-                        <span class="highscore-value">${stats.bestScore}</span>
-                    </div>
-                ` : ''}
             </div>
 
             <div class="home-actions">

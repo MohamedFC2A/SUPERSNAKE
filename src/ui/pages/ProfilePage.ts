@@ -1,7 +1,7 @@
 import { t, onLocaleChange } from '../../i18n';
-import { getStatsManager, StatsManager } from '../../game/StatsManager';
 import {
     fetchMyBestScore,
+    fetchMyUserStats,
     getAuthDebugSnapshot,
     getAuthState,
     isSupabaseConfigured,
@@ -20,10 +20,15 @@ import {
 export class ProfilePage {
     private container: HTMLElement;
     private unsubscribeLocale: (() => void) | null = null;
-    private unsubscribeStats: (() => void) | null = null;
     private unsubscribeAuth: (() => void) | null = null;
 
     private cloudBestScore: number | null = null;
+    private cloudStats: {
+        gamesPlayed: number;
+        bestScore: number;
+        totalScore: number;
+        longestSurvivalMs: number;
+    } | null = null;
     private cloudLoading: boolean = false;
     private authError: string | null = null;
     private debugExpanded: boolean = false;
@@ -38,10 +43,6 @@ export class ProfilePage {
             this.updateContent();
         });
 
-        this.unsubscribeStats = getStatsManager().subscribe(() => {
-            this.updateContent();
-        });
-
         this.unsubscribeAuth = subscribeAuth(() => {
             this.authError = takeAuthError() || this.authError;
             const auth = getAuthState();
@@ -49,6 +50,7 @@ export class ProfilePage {
                 void this.loadCloudStats();
             } else {
                 this.cloudBestScore = null;
+                this.cloudStats = null;
                 this.cloudLoading = false;
             }
             this.updateContent();
@@ -63,6 +65,15 @@ export class ProfilePage {
         this.updateContent();
         try {
             this.cloudBestScore = await fetchMyBestScore();
+            const stats = await fetchMyUserStats();
+            this.cloudStats = stats
+                ? {
+                    gamesPlayed: stats.games_played ?? 0,
+                    bestScore: stats.best_score ?? 0,
+                    totalScore: Number(stats.total_score ?? 0),
+                    longestSurvivalMs: stats.longest_survival_ms ?? 0,
+                }
+                : { gamesPlayed: 0, bestScore: 0, totalScore: 0, longestSurvivalMs: 0 };
         } finally {
             this.cloudLoading = false;
             this.updateContent();
@@ -70,12 +81,6 @@ export class ProfilePage {
     }
 
     private updateContent(): void {
-        const stats = getStatsManager().getStats();
-        const formattedSurvival = StatsManager.formatSurvivalTime(stats.longestSurvivalMs);
-        const highScoreDate = stats.highScoreDate
-            ? new Date(stats.highScoreDate).toLocaleDateString()
-            : '-';
-
         const auth = getAuthState();
         const configured = auth.configured && isSupabaseConfigured();
         const user = auth.user;
@@ -177,71 +182,27 @@ export class ProfilePage {
                         <div class="profile-cloud-stats">
                             <div class="stat-card">
                                 <span class="stat-icon">☁️</span>
-                                <span class="stat-value">${this.cloudLoading ? '…' : (this.cloudBestScore ?? 0)}</span>
-                                <span class="stat-label">${t('profile.cloudBest')}</span>
+                                <span class="stat-value">${this.cloudLoading ? '…' : (this.cloudStats?.bestScore ?? this.cloudBestScore ?? 0)}</span>
+                                <span class="stat-label">${t('profile.bestScore')}</span>
+                            </div>
+                            <div class="stat-card">
+                                <span class="stat-icon">⏱️</span>
+                                <span class="stat-value">${this.cloudLoading ? '…' : this.formatSurvival(this.cloudStats?.longestSurvivalMs ?? 0)}</span>
+                                <span class="stat-label">${t('profile.longestSurvival')}</span>
+                            </div>
+                            <div class="stat-card">
+                                <span class="stat-icon">💯</span>
+                                <span class="stat-value">${this.cloudLoading ? '…' : (this.cloudStats?.totalScore ?? 0)}</span>
+                                <span class="stat-label">${t('profile.totalScore')}</span>
+                            </div>
+                            <div class="stat-card">
+                                <span class="stat-icon">🎮</span>
+                                <span class="stat-value">${this.cloudLoading ? '…' : (this.cloudStats?.gamesPlayed ?? 0)}</span>
+                                <span class="stat-label">${t('profile.gamesPlayed')}</span>
                             </div>
                         </div>
                     </div>
                 ` : ''}
-            </div>
-
-            <div class="profile-card">
-                <div class="profile-avatar">
-                    <span class="avatar-icon">👤</span>
-                </div>
-                <div class="profile-info">
-                    <span class="profile-label">${t('profile.localProfile')}</span>
-                    <span class="profile-id">${stats.userId.slice(0, 8)}...</span>
-                </div>
-            </div>
-
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <span class="stat-icon">🎮</span>
-                    <span class="stat-value">${stats.gamesPlayed}</span>
-                    <span class="stat-label">${t('profile.gamesPlayed')}</span>
-                </div>
-                <div class="stat-card highlight">
-                    <span class="stat-icon">🏆</span>
-                    <span class="stat-value">${stats.bestScore}</span>
-                    <span class="stat-label">${t('profile.bestScore')}</span>
-                </div>
-                <div class="stat-card">
-                    <span class="stat-icon">💯</span>
-                    <span class="stat-value">${stats.totalScore}</span>
-                    <span class="stat-label">${t('profile.totalScore')}</span>
-                </div>
-                <div class="stat-card">
-                    <span class="stat-icon">⏱️</span>
-                    <span class="stat-value">${formattedSurvival}</span>
-                    <span class="stat-label">${t('profile.longestSurvival')}</span>
-                </div>
-            </div>
-
-            <div class="profile-details">
-                <div class="detail-row">
-                    <span class="detail-label">${t('profile.highScoreDate')}</span>
-                    <span class="detail-value">${highScoreDate}</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">${t('profile.highScoreVersion')}</span>
-                    <span class="detail-value">${stats.highScoreVersion}</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">${t('profile.memberSince')}</span>
-                    <span class="detail-value">${new Date(stats.createdAt).toLocaleDateString()}</span>
-                </div>
-                ${stats.lastPlayedAt ? `
-                    <div class="detail-row">
-                        <span class="detail-label">${t('profile.lastPlayed')}</span>
-                        <span class="detail-value">${new Date(stats.lastPlayedAt).toLocaleDateString()}</span>
-                    </div>
-                ` : ''}
-            </div>
-
-            <div class="profile-warning">
-                <span class="warning-icon">ℹ️</span>
-                <span class="warning-text">${t('profile.localWarning')}</span>
             </div>
         `;
 
@@ -313,13 +274,23 @@ export class ProfilePage {
             .replace(/'/g, '&#039;');
     }
 
+    private formatSurvival(ms: number): string {
+        const seconds = Math.floor(ms / 1000);
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+
+        if (minutes > 0) {
+            return `${minutes}m ${remainingSeconds}s`;
+        }
+        return `${seconds}s`;
+    }
+
     getElement(): HTMLElement {
         return this.container;
     }
 
     destroy(): void {
         this.unsubscribeLocale?.();
-        this.unsubscribeStats?.();
         this.unsubscribeAuth?.();
     }
 }

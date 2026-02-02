@@ -1,5 +1,6 @@
 import { t, onLocaleChange } from '../i18n';
 import { getRouter } from '../router';
+import { getAuthState, subscribeAuth } from '../supabase';
 
 export interface LayoutOptions {
     onNavigate?: (path: string) => void;
@@ -14,6 +15,7 @@ export class Layout {
     private navElement: HTMLElement;
     private unsubscribeLocale: (() => void) | null = null;
     private unsubscribeRoute: (() => void) | null = null;
+    private unsubscribeAuth: (() => void) | null = null;
 
     constructor(options?: LayoutOptions) {
         this.container = document.createElement('div');
@@ -42,16 +44,23 @@ export class Layout {
         this.unsubscribeRoute = router.onRouteChange(() => {
             this.updateActiveLink();
         });
+
+        // Subscribe to auth changes (mandatory login alters available nav links)
+        this.unsubscribeAuth = subscribeAuth(() => {
+            this.updateNav();
+        });
     }
 
     private updateNav(): void {
         const router = getRouter();
         const currentPath = router.getCurrentPath() || '/';
+        const isSignedIn = !!getAuthState().user;
+        const brandHref = isSignedIn ? '#/' : '#/profile';
 
         this.navElement.innerHTML = `
             <div class="nav-inner">
                 <div class="nav-brand">
-                    <a href="#/" class="nav-logo" aria-label="${t('menu.title')}">
+                    <a href="${brandHref}" class="nav-logo" aria-label="${t('menu.title')}">
                         <span class="nav-mark" aria-hidden="true"></span>
                         <span class="nav-logo-text">${t('menu.title')}</span>
                     </a>
@@ -64,21 +73,24 @@ export class Layout {
                 </button>
 
                 <div class="nav-links" id="navLinks" role="navigation" aria-label="${t('nav.main')}">
-                    <a href="#/" class="nav-link${currentPath === '/' ? ' active' : ''}" data-path="/">
-                        <span class="nav-link-text">${t('nav.home')}</span>
-                    </a>
-                    <a href="#/play" class="nav-link nav-link-primary${currentPath === '/play' ? ' active' : ''}" data-path="/play">
-                        <span class="nav-link-text">${t('nav.play')}</span>
-                    </a>
-                    <a href="#/leaderboards" class="nav-link${currentPath === '/leaderboards' ? ' active' : ''}" data-path="/leaderboards">
-                        <span class="nav-link-text">${t('nav.leaderboards')}</span>
-                    </a>
-                    <a href="#/changelog" class="nav-link${currentPath === '/changelog' ? ' active' : ''}" data-path="/changelog">
-                        <span class="nav-link-text">${t('nav.changelog')}</span>
-                    </a>
-                    <a href="#/settings" class="nav-link${currentPath === '/settings' ? ' active' : ''}" data-path="/settings">
-                        <span class="nav-link-text">${t('nav.settings')}</span>
-                    </a>
+                    ${isSignedIn ? `
+                        <a href="#/" class="nav-link${currentPath === '/' ? ' active' : ''}" data-path="/">
+                            <span class="nav-link-text">${t('nav.home')}</span>
+                        </a>
+                        <a href="#/play" class="nav-link nav-link-primary${currentPath === '/play' ? ' active' : ''}" data-path="/play">
+                            <span class="nav-link-text">${t('nav.play')}</span>
+                        </a>
+                        <a href="#/leaderboards" class="nav-link${currentPath === '/leaderboards' ? ' active' : ''}" data-path="/leaderboards">
+                            <span class="nav-link-text">${t('nav.leaderboards')}</span>
+                        </a>
+                        <a href="#/changelog" class="nav-link${currentPath === '/changelog' ? ' active' : ''}" data-path="/changelog">
+                            <span class="nav-link-text">${t('nav.changelog')}</span>
+                        </a>
+                        <a href="#/settings" class="nav-link${currentPath === '/settings' ? ' active' : ''}" data-path="/settings">
+                            <span class="nav-link-text">${t('nav.settings')}</span>
+                        </a>
+                    ` : ''}
+
                     <a href="#/profile" class="nav-link${currentPath === '/profile' ? ' active' : ''}" data-path="/profile">
                         <span class="nav-link-text">${t('nav.profile')}</span>
                     </a>
@@ -164,5 +176,6 @@ export class Layout {
     destroy(): void {
         this.unsubscribeLocale?.();
         this.unsubscribeRoute?.();
+        this.unsubscribeAuth?.();
     }
 }

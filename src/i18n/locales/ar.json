@@ -46,7 +46,6 @@
         "username": "اسم المستخدم",
         "save": "حفظ",
         "cloudBest": "أفضل نتيجة (أونلاين)",
-        "localProfile": "ملف محلي (هذا الجهاز)",
         "gamesPlayed": "الألعاب التي لعبتها",
         "bestScore": "أفضل نتيجة",
         "totalScore": "مجموع النقاط",
@@ -54,8 +53,13 @@
         "highScoreDate": "تاريخ أعلى نتيجة",
         "highScoreVersion": "إصدار أعلى نتيجة",
         "memberSince": "يلعب منذ",
-        "lastPlayed": "آخر لعبة",
-        "localWarning": "الإحصائيات مخزنة محلياً على هذا الجهاز فقط"
+        "lastPlayed": "آخر لعبة"
+    },
+    "auth": {
+        "requiredTitle": "تسجيل الدخول مطلوب",
+        "requiredSubtitle": "يجب تسجيل الدخول لاستخدام اللعبة.",
+        "requiredPanelTitle": "متابعة عبر Google",
+        "requiredPanelText": "سجّل الدخول للعب وحفظ الملف الشخصي والظهور في لوحة المتصدرين."
     },
     "leaderboards": {
         "title": "لوحة المتصدرين",
@@ -111,6 +115,9 @@
         "controls": "التحكم",
         "graphics": "الرسومات",
         "accessibility": "إمكانية الوصول",
+        "theme": "الثيم",
+        "themeDark": "داكن",
+        "themeLight": "فاتح",
         "masterVolume": "مستوى الصوت الرئيسي",
         "sfx": "المؤثرات الصوتية",
         "sfxVolume": "مستوى المؤثرات الصوتية",
