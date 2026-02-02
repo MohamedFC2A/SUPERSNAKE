@@ -25,6 +25,7 @@ let inited = false;
 let listeners = new Set<Listener>();
 let lastAuthEvent: string | null = null;
 let lastAuthEventAt: string | null = null;
+let profileFetchSeq = 0;
 let state: AuthState = {
   configured: isSupabaseConfigured(),
   loading: false,
@@ -42,7 +43,9 @@ function patchProfile(partial: Partial<ProfileRow> & { id?: string }): void {
   const userId = state.user?.id || partial.id;
   if (!userId) return;
   const base: ProfileRow = state.profile ?? { id: userId, username: null, avatar_url: null };
-  setState({ profile: { ...base, ...partial, id: userId } });
+  // Set an optimistic updated_at so any in-flight profile fetch doesn't revert local changes.
+  const optimisticUpdatedAt = new Date().toISOString();
+  setState({ profile: { ...base, ...partial, id: userId, updated_at: optimisticUpdatedAt } });
 }
 
 function timeoutAfter(ms: number, label: string): Promise<never> {
@@ -113,10 +116,21 @@ async function loadProfile(userId: string): Promise<ProfileRow | null> {
 }
 
 function loadProfileInBackground(userId: string): void {
+  const seq = ++profileFetchSeq;
   void (async () => {
     const profile = await loadProfile(userId);
     // Only set if still the same user.
-    if (state.user?.id === userId) setState({ profile });
+    if (state.user?.id !== userId) return;
+    // Drop stale fetches (e.g., older request finishing after a newer one).
+    if (seq !== profileFetchSeq) return;
+
+    // Don't let older server snapshots overwrite newer optimistic changes.
+    const current = state.profile;
+    if (current?.updated_at && profile?.updated_at) {
+      if (profile.updated_at < current.updated_at) return;
+    }
+
+    setState({ profile });
   })();
 }
 
@@ -230,9 +244,11 @@ export function initAuth(): void {
     lastAuthEvent = _event;
     lastAuthEventAt = new Date().toISOString();
     const user = session?.user ?? null;
-    // Update immediately, then load profile async.
-    setState({ session: session ?? null, user, profile: null, loading: false });
-    if (user) loadProfileInBackground(user.id);
+    // Token refreshes/initial events should not wipe the current profile (it causes UI "reverts").
+    const sameUser = !!(user && state.user && user.id === state.user.id);
+    const keepProfile = sameUser ? state.profile : null;
+    setState({ session: session ?? null, user, profile: keepProfile, loading: false });
+    if (user && !keepProfile) loadProfileInBackground(user.id);
   });
 }
 
@@ -253,8 +269,10 @@ export async function refreshSession(): Promise<void> {
     const { data } = await supabase.auth.getSession();
     const session = data.session ?? null;
     const user = session?.user ?? null;
-    setState({ loading: false, session, user, profile: null });
-    if (user) loadProfileInBackground(user.id);
+    const sameUser = !!(user && state.user && user.id === state.user.id);
+    const keepProfile = sameUser ? state.profile : null;
+    setState({ loading: false, session, user, profile: keepProfile });
+    if (user && !keepProfile) loadProfileInBackground(user.id);
   } catch (e: any) {
     setAuthError(e?.message || 'Failed to refresh session');
     setState({ loading: false });

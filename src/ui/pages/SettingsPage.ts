@@ -21,6 +21,7 @@ export class SettingsPage {
     private updateError: string | null = null;
     private onVisibilityChange: (() => void) | null = null;
     private unsubscribeAuth: (() => void) | null = null;
+    private unsubscribeSettings: (() => void) | null = null;
 
     constructor(settingsManager: SettingsManager) {
         this.settingsManager = settingsManager;
@@ -49,6 +50,62 @@ export class SettingsPage {
                 themeSelect.value = currentTheme;
             }
         });
+
+        // Keep the UI in sync if settings change from outside this page
+        // (e.g., profile settings loaded from Supabase after sign-in).
+        this.unsubscribeSettings = this.settingsManager.subscribe(() => {
+            this.syncControlsFromSettings();
+        });
+    }
+
+    private syncControlsFromSettings(): void {
+        const settings = this.settingsManager.getSettings();
+        const active = document.activeElement as HTMLElement | null;
+        const activeId = active?.id || null;
+
+        const setRange = (id: string, value: number, suffix: string): void => {
+            const input = this.container.querySelector(`#${id}`) as HTMLInputElement | null;
+            if (!input) return;
+            if (activeId === id) return;
+            input.value = String(value);
+            const valueDisplay = input.parentElement?.querySelector('.slider-value') as HTMLElement | null;
+            if (valueDisplay) valueDisplay.textContent = `${value}${suffix}`;
+        };
+
+        const setCheck = (id: string, value: boolean): void => {
+            const input = this.container.querySelector(`#${id}`) as HTMLInputElement | null;
+            if (!input) return;
+            if (activeId === id) return;
+            input.checked = !!value;
+        };
+
+        const setSelect = (id: string, value: string): void => {
+            const sel = this.container.querySelector(`#${id}`) as HTMLSelectElement | null;
+            if (!sel) return;
+            if (activeId === id) return;
+            sel.value = value;
+        };
+
+        setRange('masterVolume', settings.audio.masterVolume, '%');
+        setRange('sfxVolume', settings.audio.sfxVolume, '%');
+        setCheck('sfxEnabled', settings.audio.sfxEnabled);
+        setCheck('vibration', settings.audio.vibration);
+
+        setSelect('mobileControlMode', settings.controls.mobileControlMode);
+        setRange('joystickSize', settings.controls.joystickSize, 'px');
+        setSelect('joystickPosition', settings.controls.joystickPosition);
+        setRange('sensitivity', settings.controls.sensitivity, '');
+
+        setSelect('quality', settings.graphics.quality);
+        setCheck('particles', settings.graphics.particles);
+        setCheck('showGrid', settings.graphics.showGrid);
+        setCheck('showMinimap', settings.graphics.showMinimap);
+
+        setSelect('language', settings.accessibility.language);
+        setSelect('colorblindMode', settings.accessibility.colorblindMode);
+        setCheck('highContrast', settings.accessibility.highContrast);
+        setCheck('reducedMotion', settings.accessibility.reducedMotion);
+        setRange('fontScale', settings.accessibility.fontScale, '%');
     }
 
     private async checkUpdatesIfNeeded(): Promise<void> {
@@ -506,6 +563,7 @@ export class SettingsPage {
         this.unsubscribeLocale?.();
         this.onVisibilityChange?.();
         this.unsubscribeAuth?.();
+        this.unsubscribeSettings?.();
         if (this.savedHintTimeout) {
             window.clearTimeout(this.savedHintTimeout);
             this.savedHintTimeout = null;

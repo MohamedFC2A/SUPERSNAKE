@@ -73,6 +73,18 @@ export class SettingsManager {
         this.applySettings();
     }
 
+    private cloneSettings(value: GameSettings): GameSettings {
+        // Ensure callers never receive references to internal nested objects.
+        // This prevents accidental mutation and makes cloud-sync snapshots stable.
+        try {
+            const sc = (globalThis as any).structuredClone as ((v: unknown) => unknown) | undefined;
+            if (typeof sc === 'function') return sc(value) as GameSettings;
+        } catch {
+            // ignore
+        }
+        return JSON.parse(JSON.stringify(value)) as GameSettings;
+    }
+
     private loadSettings(): GameSettings {
         return { ...DEFAULT_SETTINGS };
     }
@@ -114,7 +126,7 @@ export class SettingsManager {
     }
 
     getSettings(): GameSettings {
-        return { ...this.settings };
+        return this.cloneSettings(this.settings);
     }
 
     /**

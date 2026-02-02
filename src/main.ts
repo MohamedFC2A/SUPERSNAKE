@@ -98,6 +98,17 @@ function main(): void {
     let lastRemoteSettingsJson: string | null = null;
     let persistTimer: number | null = null;
 
+    const flushPersistSettings = (): void => {
+        if (persistTimer) {
+            window.clearTimeout(persistTimer);
+            persistTimer = null;
+        }
+        const auth = getAuthState();
+        if (!auth.user) return;
+        if (applyingRemoteSettings) return;
+        void updateProfileSettings(settingsManager.getSettings());
+    };
+
     const schedulePersistSettings = (): void => {
         // If this change came from Supabase (applyRemoteSettings), don't schedule a write-back.
         // Otherwise we can get a "ping-pong" where remote settings re-save and disrupt UI.
@@ -115,6 +126,12 @@ function main(): void {
     settingsManager.subscribe(() => {
         schedulePersistSettings();
     });
+
+    // Ensure the latest settings snapshot is pushed before the page goes to background.
+    window.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') flushPersistSettings();
+    });
+    window.addEventListener('pagehide', () => flushPersistSettings());
 
     subscribeAuth((auth) => {
         const theme = auth.profile?.theme === 'light' ? 'light' : 'dark';
