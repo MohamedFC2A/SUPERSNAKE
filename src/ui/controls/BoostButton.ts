@@ -15,6 +15,7 @@ export class BoostButton {
 
     private isPressed: boolean = false;
     private chargePercent: number = 100;
+    private activeTouchId: number | null = null;
 
     constructor(config: Partial<BoostButtonConfig> = {}) {
         this.config = {
@@ -34,10 +35,11 @@ export class BoostButton {
     private render(): void {
         const { size, position } = this.config;
 
-        this.container.className = `boost-button-container boost-${position}`;
+        this.container.className = `boost-button-container ${position}`;
         this.container.style.cssText = `
             width: ${size}px;
             height: ${size}px;
+            touch-action: none;
         `;
 
         this.chargeRing.className = 'boost-charge-ring';
@@ -66,10 +68,23 @@ export class BoostButton {
             e.preventDefault();
             this.isPressed = false;
             this.container.classList.remove('pressed');
+            this.activeTouchId = null;
         };
 
-        this.button.addEventListener('touchstart', startPress, { passive: false });
-        this.button.addEventListener('touchend', endPress, { passive: false });
+        this.button.addEventListener('touchstart', (e: TouchEvent) => {
+            if (this.activeTouchId !== null) return;
+            const touch = e.changedTouches[0] ?? e.touches[0];
+            if (!touch) return;
+            this.activeTouchId = touch.identifier;
+            startPress(e);
+        }, { passive: false });
+
+        this.button.addEventListener('touchend', (e: TouchEvent) => {
+            if (this.activeTouchId === null) return;
+            const ended = Array.from(e.changedTouches).some(t => t.identifier === this.activeTouchId);
+            if (ended) endPress(e);
+        }, { passive: false });
+
         this.button.addEventListener('touchcancel', endPress, { passive: false });
 
         this.button.addEventListener('mousedown', startPress);
@@ -88,10 +103,8 @@ export class BoostButton {
     updateCharge(percent: number): void {
         this.chargePercent = Math.max(0, Math.min(100, percent));
 
-        // Update ring visual
-        const circumference = 2 * Math.PI * 35; // radius of ring
-        const offset = circumference - (this.chargePercent / 100) * circumference;
-        this.chargeRing.style.setProperty('--charge-offset', `${offset}px`);
+        // Update ring visual (CSS conic-gradient)
+        this.chargeRing.style.setProperty('--charge-percent', `${this.chargePercent}`);
 
         // Add/remove ready state
         if (this.chargePercent >= 100) {

@@ -9,6 +9,7 @@ import { BoostButton } from '../../ui/controls/BoostButton';
 import { HUDManager } from '../../ui/hud/HUDManager';
 import { MiniMap } from '../../ui/hud/MiniMap';
 import { Config } from '../../config';
+import { Vector2 } from '../../utils/utils';
 
 /**
  * PlayPage - Hosts the game canvas and controls
@@ -45,6 +46,11 @@ export class PlayPage {
 
     // Update loop
     private updateLoopId: number | null = null;
+
+    // Orientation guard (mobile)
+    private rotateOverlay: HTMLElement | null = null;
+    private orientationBlocked: boolean = false;
+    private pausedByOrientation: boolean = false;
 
     constructor(settingsManager: SettingsManager) {
         this.settingsManager = settingsManager;
@@ -169,6 +175,11 @@ export class PlayPage {
             this.initMobileControls();
         }
 
+        // Connect external mobile controls to the game's input manager
+        if (this.isTouchDevice()) {
+            this.game.getInput().setExternalControlsEnabled(true);
+        }
+
         // Start game loop
         console.log('[PlayPage] Starting game loop...');
         this.game.start();
@@ -179,6 +190,13 @@ export class PlayPage {
 
         // Play start sound
         getAudioManager().play('start');
+
+        // Orientation guard (force rotate)
+        if (this.isTouchDevice()) {
+            this.tryLockLandscape();
+            this.initOrientationGuard();
+            this.updateOrientationGuard();
+        }
 
         // Start HUD update loop
         this.startUpdateLoop();
@@ -270,6 +288,74 @@ export class PlayPage {
         this.boostButton.show();
     }
 
+    private initOrientationGuard(): void {
+        if (this.rotateOverlay) return;
+
+        const uiLayer = this.container.querySelector('#ui-layer');
+        if (!uiLayer) return;
+
+        this.rotateOverlay = document.createElement('div');
+        this.rotateOverlay.className = 'rotate-overlay hidden';
+        this.rotateOverlay.innerHTML = `
+            <div class="rotate-card" role="dialog" aria-modal="true" aria-label="Rotate device">
+                <div class="rotate-icon" aria-hidden="true">📱↻</div>
+                <div class="rotate-title">Rotate your device</div>
+                <div class="rotate-subtitle">Please switch to landscape to play</div>
+                <button class="btn btn-primary rotate-try" id="tryRotateBtn" type="button">Try again</button>
+            </div>
+        `;
+        uiLayer.appendChild(this.rotateOverlay);
+
+        const tryBtn = this.rotateOverlay.querySelector('#tryRotateBtn');
+        tryBtn?.addEventListener('click', async () => {
+            await this.tryLockLandscape();
+            this.updateOrientationGuard();
+        });
+
+        window.addEventListener('orientationchange', this.updateOrientationGuard);
+        window.addEventListener('resize', this.updateOrientationGuard);
+    }
+
+    private isPortrait(): boolean {
+        return window.innerHeight > window.innerWidth;
+    }
+
+    private tryLockLandscape = async (): Promise<void> => {
+        try {
+            // Works on some browsers (mainly Android Chrome) and requires a user gesture.
+            if ((screen as any).orientation?.lock) {
+                await (screen as any).orientation.lock('landscape');
+            }
+        } catch {
+            // Ignore (unsupported or blocked)
+        }
+    };
+
+    private updateOrientationGuard = (): void => {
+        if (!this.isTouchDevice() || !this.game) return;
+
+        const shouldBlock = this.isPortrait();
+        this.orientationBlocked = shouldBlock;
+
+        if (shouldBlock) {
+            this.rotateOverlay?.classList.remove('hidden');
+            document.body.classList.add('orientation-blocked');
+
+            if (!this.game.paused) {
+                this.game.pause();
+                this.pausedByOrientation = true;
+            }
+        } else {
+            this.rotateOverlay?.classList.add('hidden');
+            document.body.classList.remove('orientation-blocked');
+
+            if (this.pausedByOrientation) {
+                this.game.resume();
+                this.pausedByOrientation = false;
+            }
+        }
+    };
+
     private isTouchDevice(): boolean {
         return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
     }
@@ -300,11 +386,18 @@ export class PlayPage {
             if (this.isDestroyed || !this.isGameRunning) return;
 
             if (this.game) {
-                if (this.game.state === 'playing' && !this.game.paused) {
-                    this.updateHUD();
-                    this.updateLeaderboard();
-                    this.updateMiniMap();
-                    this.updateBossUI();
+                if (this.game.state === 'playing') {
+                    // Keep mobile controls synced even when paused (e.g., forced rotate overlay)
+                    this.syncMobileControls();
+
+                    if (!this.game.paused) {
+                        this.updateHUD();
+                        this.updateLeaderboard();
+                        this.updateMiniMap();
+                        this.updateBossUI();
+                    } else {
+                        this.updateBossUI();
+                    }
                 } else if (this.game.state === 'gameover') {
                     this.handleGameOver();
                     return; // Stop update loop
@@ -314,6 +407,27 @@ export class PlayPage {
             this.updateLoopId = requestAnimationFrame(update);
         };
         this.updateLoopId = requestAnimationFrame(update);
+    }
+
+    private syncMobileControls(): void {
+        if (!this.game) return;
+
+        // If user is forced to rotate, keep controls neutral.
+        if (this.orientationBlocked) {
+            this.game.getInput().setExternalJoystick(Vector2.zero(), false);
+            this.game.getInput().setExternalBoostPressed(false);
+            return;
+        }
+
+        if (this.joystick) {
+            const state = this.joystick.getState();
+            const dir = new Vector2(state.direction.x, state.direction.y);
+            this.game.getInput().setExternalJoystick(dir, state.active && state.magnitude > 0);
+        }
+
+        if (this.boostButton) {
+            this.game.getInput().setExternalBoostPressed(this.boostButton.isBoostPressed());
+        }
     }
 
     private updateHUD(): void {
@@ -519,6 +633,8 @@ export class PlayPage {
         // Remove event listeners
         window.removeEventListener('resize', this.handleResize);
         window.removeEventListener('keydown', this.handleKeyDown);
+        window.removeEventListener('orientationchange', this.updateOrientationGuard);
+        window.removeEventListener('resize', this.updateOrientationGuard);
 
         // Record stats if game was active
         if (this.game && this.game.state === 'playing' && this.isGameRunning) {
@@ -535,6 +651,7 @@ export class PlayPage {
 
         // Ensure boss mode visuals are cleared
         document.body.classList.remove('boss-mode');
+        document.body.classList.remove('orientation-blocked');
         this.bossModeActive = false;
         this.lastBossCountdownSecond = null;
     }

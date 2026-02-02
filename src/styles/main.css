@@ -136,6 +136,7 @@ body {
   width: 100%;
   height: 100%;
   background: var(--bg-primary);
+  touch-action: none;
 }
 
 #ui-layer {
@@ -1212,61 +1213,188 @@ select:focus-visible {
 
 .joystick-container {
   position: absolute;
-  bottom: var(--space-xl);
-  inset-inline-start: var(--space-xl);
+  bottom: calc(var(--space-xl) + env(safe-area-inset-bottom));
+  inset-inline-start: calc(var(--space-xl) + env(safe-area-inset-left));
   pointer-events: auto;
 }
 
 .joystick-container.right {
   inset-inline-start: auto;
-  inset-inline-end: var(--space-xl);
+  inset-inline-end: calc(var(--space-xl) + env(safe-area-inset-right));
 }
 
 .joystick-base {
-  width: 120px;
-  height: 120px;
+  position: absolute;
+  inset: 0;
   background: var(--ui-panel);
   border: 2px solid var(--ui-border);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
-.joystick-thumb {
+.joystick-thumb,
+.joystick-handle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
   width: 48px;
   height: 48px;
-  background: var(--accent);
+  background: rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
   border-radius: 50%;
+  transform: translate(-50%, -50%);
   transition: transform 0.05s linear;
+}
+
+.boost-button-container {
+  position: absolute;
+  bottom: calc(var(--space-xl) + env(safe-area-inset-bottom));
+  inset-inline-end: calc(var(--space-xl) + env(safe-area-inset-right));
+  pointer-events: auto;
+  z-index: 60;
+}
+
+.boost-button-container.left {
+  inset-inline-end: auto;
+  inset-inline-start: calc(var(--space-xl) + env(safe-area-inset-left));
+}
+
+.boost-charge-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(
+    rgba(59, 130, 246, 0.95) calc(var(--charge-percent, 100) * 1%),
+    rgba(255, 255, 255, 0.10) 0
+  );
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 7px), #000 calc(100% - 7px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 7px), #000 calc(100% - 7px));
+  opacity: 0.95;
+  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.35));
 }
 
 .boost-button {
   position: absolute;
-  bottom: var(--space-xl);
-  inset-inline-end: var(--space-xl);
-  width: 72px;
-  height: 72px;
-  background: var(--ui-panel);
-  border: 2px solid var(--ui-border);
+  inset: 7px;
   border-radius: 50%;
+  background: rgba(17, 17, 17, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  cursor: pointer;
+  transition: transform var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
+  touch-action: none;
+}
+
+.boost-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.boost-text {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.boost-button-container.pressed .boost-button {
+  transform: scale(0.96);
+  background: rgba(59, 130, 246, 0.14);
+  border-color: rgba(59, 130, 246, 0.45);
+}
+
+.boost-button-container.boost-ready .boost-charge-ring {
+  background: conic-gradient(
+    rgba(34, 197, 94, 0.95) calc(var(--charge-percent, 100) * 1%),
+    rgba(255, 255, 255, 0.10) 0
+  );
+}
+
+/* If joystick is on the right, move boost to the left (legacy support) */
+.joystick-container.right~.boost-button-container {
+  inset-inline-end: auto;
+  inset-inline-start: calc(var(--space-xl) + env(safe-area-inset-left));
+}
+
+/* ===== Rotate Overlay (force landscape on mobile) ===== */
+.rotate-overlay {
+  position: absolute;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
-  color: var(--accent);
+  padding: var(--space-l);
+  background: rgba(0, 0, 0, 0.75);
+  z-index: 4000;
   pointer-events: auto;
-  transition: all var(--transition-fast);
 }
 
-.boost-button:active {
-  background: var(--accent-muted);
-  border-color: var(--accent);
+.rotate-card {
+  width: min(420px, 92vw);
+  padding: var(--space-xl);
+  border-radius: var(--radius-l);
+  background: rgba(17, 17, 17, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  text-align: center;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.6);
 }
 
-.joystick-container.right~.boost-button {
-  inset-inline-end: auto;
-  inset-inline-start: var(--space-xl);
+.rotate-icon {
+  font-size: 42px;
+  margin-bottom: var(--space-m);
+}
+
+.rotate-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: var(--space-s);
+}
+
+.rotate-subtitle {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin-bottom: var(--space-l);
+}
+
+.rotate-try {
+  width: 100%;
+}
+
+/* ===== Mobile HUD layout improvements ===== */
+@media (pointer: coarse), (max-width: 720px) {
+  .play-page .leaderboard {
+    inset-inline-end: auto;
+    inset-inline-start: calc(var(--space-m) + env(safe-area-inset-left));
+    top: calc(var(--space-m) + env(safe-area-inset-top));
+    min-width: 150px;
+    max-width: 44vw;
+    max-height: 180px;
+    overflow: auto;
+    pointer-events: none;
+  }
+
+  .play-page .minimap {
+    top: calc(var(--space-m) + env(safe-area-inset-top));
+    bottom: auto;
+    inset-inline-end: calc(var(--space-m) + env(safe-area-inset-right));
+    transform: scale(0.92);
+    transform-origin: top right;
+    pointer-events: none;
+  }
 }
 
 /* ===== Changelog Page ===== */
@@ -2110,6 +2238,8 @@ select:focus-visible {
   height: 100%;
   background: var(--bg-primary);
   z-index: 2000;
+  overscroll-behavior: none;
+  user-select: none;
 }
 
 .play-container {

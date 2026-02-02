@@ -54,6 +54,9 @@ export class MiniMap {
 
         this.ctx = this.canvas.getContext('2d')!;
 
+        // Default to collapsed on small/mobile screens to avoid blocking gameplay
+        this.isCollapsed = window.matchMedia('(max-width: 520px)').matches || window.matchMedia('(max-height: 520px)').matches;
+
         this.render();
         this.setupKeyboardShortcut();
     }
@@ -67,10 +70,16 @@ export class MiniMap {
             <div class="minimap-body" id="minimapBody"></div>
         `;
 
-        const body = this.container.querySelector('#minimapBody');
+        const body = this.container.querySelector('#minimapBody') as HTMLElement | null;
         body?.appendChild(this.canvas);
+        if (this.isCollapsed && body) {
+            body.style.display = 'none';
+        }
 
         const toggle = this.container.querySelector('#minimapToggle');
+        if (this.isCollapsed && toggle) {
+            toggle.textContent = '+';
+        }
         toggle?.addEventListener('click', () => this.toggleCollapse());
     }
 

@@ -25,6 +25,7 @@ export class VirtualJoystick {
     private center: { x: number; y: number } = { x: 0, y: 0 };
     private direction: { x: number; y: number } = { x: 0, y: 0 };
     private magnitude: number = 0;
+    private activeTouchId: number | null = null;
 
     constructor(config: Partial<JoystickConfig> = {}) {
         this.config = {
@@ -47,10 +48,11 @@ export class VirtualJoystick {
         const { size, position } = this.config;
         const handleSize = size * 0.4;
 
-        this.container.className = `joystick-container joystick-${position}`;
+        this.container.className = `joystick-container${position === 'right' ? ' right' : ''}`;
         this.container.style.cssText = `
             width: ${size}px;
             height: ${size}px;
+            touch-action: none;
         `;
 
         this.base.className = 'joystick-base';
@@ -68,11 +70,14 @@ export class VirtualJoystick {
         this.container.addEventListener('touchstart', this.onTouchStart.bind(this), { passive: false });
         window.addEventListener('touchmove', this.onTouchMove.bind(this), { passive: false });
         window.addEventListener('touchend', this.onTouchEnd.bind(this), { passive: false });
+        window.addEventListener('touchcancel', this.onTouchEnd.bind(this), { passive: false });
     }
 
     private onTouchStart(e: TouchEvent): void {
         e.preventDefault();
-        const touch = e.touches[0];
+        const touch = e.changedTouches[0] ?? e.touches[0];
+        if (!touch) return;
+        this.activeTouchId = touch.identifier;
         const rect = this.container.getBoundingClientRect();
 
         this.isActive = true;
@@ -94,26 +99,23 @@ export class VirtualJoystick {
         if (!this.isActive) return;
         e.preventDefault();
 
-        const touch = e.touches[0];
+        const touch = this.activeTouchId !== null
+            ? Array.from(e.touches).find(t => t.identifier === this.activeTouchId) ?? null
+            : e.touches[0] ?? null;
+        if (!touch) return;
         this.updatePosition(touch.clientX, touch.clientY);
     }
 
     private onTouchEnd(e: TouchEvent): void {
         if (!this.isActive) return;
 
-        // Check if our touch ended
-        let stillActive = false;
-        for (let i = 0; i < e.touches.length; i++) {
-            const rect = this.container.getBoundingClientRect();
-            const touch = e.touches[i];
-            if (touch.clientX >= rect.left && touch.clientX <= rect.right &&
-                touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
-                stillActive = true;
-                break;
+        if (this.activeTouchId !== null) {
+            const ended = Array.from(e.changedTouches).some(t => t.identifier === this.activeTouchId);
+            if (ended) {
+                this.reset();
+                this.activeTouchId = null;
             }
-        }
-
-        if (!stillActive) {
+        } else if (e.touches.length === 0) {
             this.reset();
         }
     }
@@ -154,6 +156,7 @@ export class VirtualJoystick {
         this.isActive = false;
         this.direction = { x: 0, y: 0 };
         this.magnitude = 0;
+        this.activeTouchId = null;
         this.handle.style.transform = 'translate(-50%, -50%)';
         this.container.classList.remove('active');
     }

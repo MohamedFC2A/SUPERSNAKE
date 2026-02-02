@@ -11,6 +11,16 @@ export class InputManager {
     private joystickActive: boolean = false;
     private boostPressed: boolean = false;
 
+    // External (UI) controls (used by PlayPage mobile UI)
+    private externalControlsEnabled: boolean = false;
+    private externalJoystickActive: boolean = false;
+    private externalJoystickDirection: Vector2 = Vector2.zero();
+    private externalBoostPressed: boolean = false;
+
+    // Internal touch tracking (fallback)
+    private joystickTouchId: number | null = null;
+    private boostTouchId: number | null = null;
+
     // Joystick configuration
     private joystickCenter: Vector2 = new Vector2();
     private joystickMaxRadius: number = 50;
@@ -25,6 +35,34 @@ export class InputManager {
 
     public setCanvas(canvas: HTMLCanvasElement): void {
         this.canvas = canvas;
+    }
+
+    /**
+     * Enable/disable external UI controls (virtual joystick + boost button).
+     * When enabled, internal touch controls are ignored.
+     */
+    public setExternalControlsEnabled(enabled: boolean): void {
+        this.externalControlsEnabled = enabled;
+        if (enabled) {
+            this.joystickActive = false;
+            this.joystickDirection = Vector2.zero();
+            this.boostPressed = false;
+            this.joystickTouchId = null;
+            this.boostTouchId = null;
+        } else {
+            this.externalJoystickActive = false;
+            this.externalJoystickDirection = Vector2.zero();
+            this.externalBoostPressed = false;
+        }
+    }
+
+    public setExternalJoystick(direction: Vector2, active: boolean): void {
+        this.externalJoystickActive = active;
+        this.externalJoystickDirection = direction.magnitude() > 0 ? direction.normalize() : Vector2.zero();
+    }
+
+    public setExternalBoostPressed(pressed: boolean): void {
+        this.externalBoostPressed = pressed;
     }
 
     private setupKeyboardListeners(): void {
@@ -62,27 +100,36 @@ export class InputManager {
 
     private setupTouchListeners(): void {
         window.addEventListener('touchstart', (e) => {
+            if (this.externalControlsEnabled) return;
             if (e.touches.length > 0) {
-                const touch = e.touches[0];
-                const x = touch.clientX;
-                const y = touch.clientY;
+                // Prefer the first new touch as joystick if it's in joystick zone; otherwise boost.
+                const touch = e.changedTouches[0] ?? e.touches[0];
+                if (touch) {
+                    const x = touch.clientX;
+                    const y = touch.clientY;
 
-                // Check if touch is in joystick area (bottom-left quadrant)
-                if (x < window.innerWidth / 2 && y > window.innerHeight / 2) {
-                    this.joystickCenter.set(x, y);
-                    this.joystickActive = true;
-                    this.touchPosition = new Vector2(x, y);
-                } else {
-                    // Touch in other areas = boost
-                    this.boostPressed = true;
+                    // Bottom-left quadrant = joystick
+                    if (x < window.innerWidth / 2 && y > window.innerHeight / 2 && this.joystickTouchId === null) {
+                        this.joystickTouchId = touch.identifier;
+                        this.joystickCenter.set(x, y);
+                        this.joystickActive = true;
+                        this.touchPosition = new Vector2(x, y);
+                    } else if (this.boostTouchId === null) {
+                        this.boostTouchId = touch.identifier;
+                        this.boostPressed = true;
+                    }
                 }
             }
             e.preventDefault();
         }, { passive: false });
 
         window.addEventListener('touchmove', (e) => {
+            if (this.externalControlsEnabled) return;
             if (this.joystickActive && e.touches.length > 0) {
-                const touch = e.touches[0];
+                const touch = this.joystickTouchId !== null
+                    ? Array.from(e.touches).find(t => t.identifier === this.joystickTouchId) ?? e.touches[0]
+                    : e.touches[0];
+
                 this.touchPosition = new Vector2(touch.clientX, touch.clientY);
 
                 // Calculate joystick direction
@@ -101,12 +148,46 @@ export class InputManager {
         }, { passive: false });
 
         window.addEventListener('touchend', (e) => {
-            if (e.touches.length === 0) {
+            if (this.externalControlsEnabled) return;
+
+            // If the joystick touch ended, reset joystick
+            if (this.joystickTouchId !== null) {
+                const ended = Array.from(e.changedTouches).some(t => t.identifier === this.joystickTouchId);
+                if (ended) {
+                    this.joystickTouchId = null;
+                    this.joystickActive = false;
+                    this.joystickDirection = Vector2.zero();
+                    this.touchPosition = null;
+                }
+            }
+
+            // If boost touch ended, reset boost
+            if (this.boostTouchId !== null) {
+                const ended = Array.from(e.changedTouches).some(t => t.identifier === this.boostTouchId);
+                if (ended) {
+                    this.boostTouchId = null;
+                    this.boostPressed = false;
+                }
+            }
+
+            e.preventDefault();
+        }, { passive: false });
+
+        window.addEventListener('touchcancel', (e) => {
+            if (this.externalControlsEnabled) return;
+
+            if (this.joystickTouchId !== null && Array.from(e.changedTouches).some(t => t.identifier === this.joystickTouchId)) {
+                this.joystickTouchId = null;
                 this.joystickActive = false;
                 this.joystickDirection = Vector2.zero();
                 this.touchPosition = null;
+            }
+
+            if (this.boostTouchId !== null && Array.from(e.changedTouches).some(t => t.identifier === this.boostTouchId)) {
+                this.boostTouchId = null;
                 this.boostPressed = false;
             }
+
             e.preventDefault();
         }, { passive: false });
     }
@@ -144,6 +225,11 @@ export class InputManager {
             return keyDir;
         }
 
+        // External joystick (mobile UI)
+        if (this.externalControlsEnabled && this.externalJoystickActive && this.externalJoystickDirection.magnitude() > 0) {
+            return this.externalJoystickDirection.normalize();
+        }
+
         // Then joystick
         if (this.joystickActive && this.joystickDirection.magnitude() > 0) {
             return this.joystickDirection.normalize();
@@ -157,6 +243,9 @@ export class InputManager {
      * Check if boost is active
      */
     public isBoostPressed(): boolean {
+        if (this.externalControlsEnabled) {
+            return this.externalBoostPressed || this.keys.get('Space') || false;
+        }
         return this.boostPressed || this.keys.get('Space') || false;
     }
 
