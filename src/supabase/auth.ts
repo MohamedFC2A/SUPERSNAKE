@@ -45,6 +45,16 @@ function patchProfile(partial: Partial<ProfileRow> & { id?: string }): void {
   setState({ profile: { ...base, ...partial, id: userId } });
 }
 
+function timeoutAfter(ms: number, label: string): Promise<never> {
+  return new Promise((_, reject) => {
+    window.setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+  });
+}
+
+async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return (await Promise.race([promise, timeoutAfter(ms, label)])) as T;
+}
+
 export function getAuthDebugSnapshot(): Record<string, any> {
   const href = typeof window !== 'undefined' ? window.location.href : null;
   const origin = typeof window !== 'undefined' ? window.location.origin : null;
@@ -151,7 +161,11 @@ async function handleOAuthCallbackIfPresent(): Promise<void> {
 
   try {
     setState({ loading: true });
-    const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+    const { data, error: exchangeError } = await withTimeout(
+      supabase.auth.exchangeCodeForSession(code),
+      12000,
+      'OAuth session exchange'
+    );
     if (exchangeError) {
       setAuthError(exchangeError.message || 'Sign-in failed');
     }
@@ -160,8 +174,15 @@ async function handleOAuthCallbackIfPresent(): Promise<void> {
     // Set session/user immediately; load profile async so auth UI doesn't get stuck.
     setState({ loading: false, session, user, profile: null });
     if (user) loadProfileInBackground(user.id);
-  } catch {
-    setAuthError('Sign-in failed (session exchange)');
+  } catch (e: any) {
+    const msg = (e?.message || '').toString();
+    if (msg.includes('timed out')) {
+      setAuthError(
+        'Sign-in is taking too long. This is usually caused by: (1) blocked network requests (adblock/firewall), (2) wrong Supabase URL/ANON key on Vercel, or (3) incorrect redirect URL configuration in Supabase.'
+      );
+    } else {
+      setAuthError('Sign-in failed (session exchange)');
+    }
     setState({ loading: false });
   } finally {
     // Remove code param from URL (search + hash query)
@@ -195,7 +216,7 @@ export function initAuth(): void {
     await handleOAuthCallbackIfPresent();
 
     try {
-      const { data } = await supabase.auth.getSession();
+      const { data } = await withTimeout(supabase.auth.getSession(), 8000, 'Get session');
       const session = data.session ?? null;
       const user = session?.user ?? null;
       setState({ loading: false, session, user, profile: null });
