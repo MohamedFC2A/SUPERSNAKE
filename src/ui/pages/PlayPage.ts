@@ -11,7 +11,7 @@ import { MiniMap } from '../../ui/hud/MiniMap';
 import { Config } from '../../config';
 import { Vector2 } from '../../utils/utils';
 import { getDeferredInstallPrompt, isMobileLike, isStandaloneMode, promptInstallIfAvailable } from '../../pwa/install';
-import { submitScore } from '../../supabase';
+import { getAuthState, submitScore, subscribeAuth } from '../../supabase';
 
 /**
  * PlayPage - Hosts the game canvas and controls
@@ -28,6 +28,7 @@ export class PlayPage {
     private settingsManager: SettingsManager;
     private canvas: HTMLCanvasElement | null = null;
     private unsubscribeLocale: (() => void) | null = null;
+    private unsubscribeAuth: (() => void) | null = null;
     private unsubscribeSettings: (() => void) | null = null;
     private gameStartTime: number = 0;
     private isGameRunning: boolean = false;
@@ -53,6 +54,21 @@ export class PlayPage {
     private joystick: VirtualJoystick | null = null;
     private boostButton: BoostButton | null = null;
     private lastPlayerName: string = 'Player';
+    private mobileControlMode: 'joystick' | 'touch' = 'joystick';
+
+    // Touch-drag controls (mouse-like)
+    private touchPointerId: number | null = null;
+    private touchActive: boolean = false;
+    private touchPos: Vector2 = Vector2.zero();
+    private boostLocked: boolean = false;
+    private lastTapMs: number = 0;
+    private touchListenersAttached: boolean = false;
+    private touchHandlers: {
+        onPointerDown: (e: PointerEvent) => void;
+        onPointerMove: (e: PointerEvent) => void;
+        onPointerUp: (e: PointerEvent) => void;
+        onPointerCancel: (e: PointerEvent) => void;
+    } | null = null;
 
     // Update loop
     private updateLoopId: number | null = null;
@@ -73,14 +89,31 @@ export class PlayPage {
                 this.showStartScreen();
             }
         });
+
+        this.unsubscribeAuth = subscribeAuth(() => {
+            if (!this.isGameRunning) {
+                this.showStartScreen();
+            }
+        });
     }
 
     /**
      * Show the "Enter your name" start screen
      */
     private showStartScreen(): void {
-        // No local persistence
-        const savedName = this.lastPlayerName || '';
+        const auth = getAuthState();
+        const user = auth.user;
+        const profile = auth.profile;
+        const cloudName =
+            profile?.username ||
+            (user?.user_metadata?.full_name as string | undefined) ||
+            (user?.user_metadata?.name as string | undefined) ||
+            (user?.email ? user.email.split('@')[0] : null) ||
+            null;
+
+        // Always prefer the signed-in user name when available.
+        this.lastPlayerName = (cloudName || this.lastPlayerName || 'Player').toString().slice(0, 20);
+
         const mobile = isMobileLike();
 
         this.container.innerHTML = `
@@ -103,16 +136,12 @@ export class PlayPage {
                             </div>
                         </div>
                     ` : ''}
-                    
+
                     <div class="play-name-input-group">
-                        <label for="playerNameInput" class="play-name-label">${t('menu.enterName')}</label>
-                        <input type="text" 
-                               id="playerNameInput" 
-                               class="play-name-input" 
-                               value="${savedName}"
-                               placeholder="${t('menu.playerName')}"
-                               maxlength="15"
-                               autocomplete="off">
+                        <div class="play-name-label">${t('profile.cloudTitle')}</div>
+                        <div class="play-name-input" style="pointer-events:none; user-select:none;">
+                            ${this.escapeHtml(this.lastPlayerName)}
+                        </div>
                     </div>
                     
                     <button class="btn btn-primary play-start-btn" id="startGameBtn">
@@ -136,22 +165,11 @@ export class PlayPage {
 
     private setupStartScreenEvents(): void {
         const startBtn = this.container.querySelector('#startGameBtn');
-        const nameInput = this.container.querySelector('#playerNameInput') as HTMLInputElement;
         const backBtn = this.container.querySelector('#backToHome');
         const openInstallGateBtn = this.container.querySelector('#openInstallGateBtn');
 
         startBtn?.addEventListener('click', () => {
-            const name = nameInput?.value.trim() || 'Player';
-            this.lastPlayerName = name;
-            this.startGame(name);
-        });
-
-        nameInput?.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                const name = nameInput.value.trim() || 'Player';
-                this.lastPlayerName = name;
-                this.startGame(name);
-            }
+            this.startGame(this.lastPlayerName || 'Player');
         });
 
         backBtn?.addEventListener('click', () => {
@@ -162,9 +180,6 @@ export class PlayPage {
             this.installOverlayVisible = true;
             this.showStartScreen();
         });
-
-        // Focus name input
-        setTimeout(() => nameInput?.focus(), 100);
     }
 
     /**
@@ -211,17 +226,22 @@ export class PlayPage {
             this.game?.applySettings(newSettings);
 
             // Live-update mobile control layout
+            this.mobileControlMode = newSettings.controls.mobileControlMode;
+            if (this.isTouchDevice()) {
+                this.configureMobileControls();
+            }
+
             if (this.joystick) {
                 this.joystick.updateConfig({
                     size: newSettings.controls.joystickSize,
-                    position: 'left',
+                    position: newSettings.controls.joystickPosition,
                     deadZone: Math.max(8, Math.round(newSettings.controls.joystickSize * 0.07)),
                     maxRadius: Math.max(44, Math.round(newSettings.controls.joystickSize * 0.42)),
                 });
             }
             if (this.boostButton) {
                 this.boostButton.updateConfig({
-                    position: 'right',
+                    position: newSettings.controls.joystickPosition === 'left' ? 'right' : 'left',
                 });
             }
 
@@ -233,6 +253,7 @@ export class PlayPage {
 
         // Initialize mobile controls
         if (this.isTouchDevice()) {
+            this.mobileControlMode = this.settingsManager.getSettings().controls.mobileControlMode;
             this.initMobileControls();
         }
 
@@ -325,32 +346,7 @@ export class PlayPage {
         uiLayer.appendChild(this.leaderboard);
     }
 
-    private initMobileControls(): void {
-        const uiLayer = this.container.querySelector('#ui-layer');
-        if (!uiLayer) return;
-
-        const settings = this.settingsManager.getSettings();
-        this.controlSensitivity = settings.controls.sensitivity;
-
-        this.joystick = new VirtualJoystick({
-            size: settings.controls.joystickSize,
-            // Force mobile layout: joystick left, boost right
-            position: 'left',
-            deadZone: Math.max(8, Math.round(settings.controls.joystickSize * 0.07)),
-            maxRadius: Math.max(44, Math.round(settings.controls.joystickSize * 0.42)),
-        });
-
-        this.boostButton = new BoostButton({
-            size: 80,
-            position: 'right',
-        });
-
-        uiLayer.appendChild(this.joystick.getElement());
-        uiLayer.appendChild(this.boostButton.getElement());
-
-        this.joystick.show();
-        this.boostButton.show();
-    }
+    // Mobile controls are configured dynamically based on settings (joystick vs touch-drag).
 
     private initOrientationGuard(): void {
         if (this.rotateOverlay) return;
@@ -524,6 +520,31 @@ export class PlayPage {
     private syncMobileControls(): void {
         if (!this.game) return;
 
+        if (this.mobileControlMode === 'touch') {
+            const now = performance.now();
+            const dtSec = this.lastControlSyncMs > 0 ? Math.min(0.05, (now - this.lastControlSyncMs) / 1000) : (1 / 60);
+            this.lastControlSyncMs = now;
+
+            const sensitivity = Math.max(1, Math.min(10, this.controlSensitivity));
+            const base = 0.10 + ((sensitivity - 1) / 9) * 0.35; // responsiveness: 0.10..0.45
+            const follow = 1 - Math.pow(1 - base, dtSec * 60);
+            const release = 1 - Math.pow(1 - 0.42, dtSec * 60);
+
+            const screenCenter = new Vector2(window.innerWidth / 2, window.innerHeight / 2);
+            const target = this.touchActive ? this.touchPos.subtract(screenCenter) : Vector2.zero();
+            if (this.touchActive && target.magnitude() > 20) {
+                this.smoothedJoystick = this.smoothedJoystick.lerp(target.normalize(), follow);
+            } else {
+                this.smoothedJoystick = this.smoothedJoystick.lerp(Vector2.zero(), release);
+            }
+
+            const active = this.touchActive && this.smoothedJoystick.magnitude() > 0.08;
+            const finalDir = active ? this.smoothedJoystick : Vector2.zero();
+            this.game.getInput().setExternalJoystick(finalDir, active);
+            this.game.getInput().setExternalBoostPressed(this.boostLocked);
+            return;
+        }
+
         if (this.joystick) {
             const now = performance.now();
             const dtSec = this.lastControlSyncMs > 0 ? Math.min(0.05, (now - this.lastControlSyncMs) / 1000) : (1 / 60);
@@ -551,6 +572,112 @@ export class PlayPage {
         if (this.boostButton) {
             this.game.getInput().setExternalBoostPressed(this.boostButton.isBoostPressed());
         }
+    }
+
+    private initMobileControls(): void {
+        this.configureMobileControls();
+    }
+
+    private configureMobileControls(): void {
+        if (!this.game) return;
+        const uiLayer = this.container.querySelector('#ui-layer') as HTMLElement | null;
+        if (!uiLayer) return;
+
+        // Cleanup existing controls
+        this.joystick?.destroy();
+        this.joystick = null;
+        this.boostButton?.destroy();
+        this.boostButton = null;
+
+        this.detachTouchDragListeners();
+        this.boostLocked = false;
+        this.touchActive = false;
+        this.touchPointerId = null;
+
+        if (this.mobileControlMode === 'touch') {
+            // No UI controls; use touch-drag like mouse.
+            this.game.getInput().setExternalControlsEnabled(true);
+            this.attachTouchDragListeners();
+            return;
+        }
+
+        // Joystick + Boost button UI
+        const settings = this.settingsManager.getSettings();
+        this.joystick = new VirtualJoystick({
+            size: settings.controls.joystickSize,
+            position: settings.controls.joystickPosition,
+            deadZone: Math.max(8, Math.round(settings.controls.joystickSize * 0.07)),
+            maxRadius: Math.max(44, Math.round(settings.controls.joystickSize * 0.42)),
+        });
+        uiLayer.appendChild(this.joystick.getElement());
+        this.joystick.show();
+
+        this.boostButton = new BoostButton({
+            position: settings.controls.joystickPosition === 'left' ? 'right' : 'left',
+            size: 80,
+        });
+        uiLayer.appendChild(this.boostButton.getElement());
+        this.boostButton.show();
+
+        this.game.getInput().setExternalControlsEnabled(true);
+    }
+
+    private attachTouchDragListeners(): void {
+        if (!this.canvas || this.touchListenersAttached) return;
+        this.touchListenersAttached = true;
+
+        const onPointerDown = (e: PointerEvent) => {
+            if (!this.canvas) return;
+            // Double-tap toggles continuous boost
+            const now = performance.now();
+            if (now - this.lastTapMs < 280) {
+                this.boostLocked = !this.boostLocked;
+                this.lastTapMs = 0;
+            } else {
+                this.lastTapMs = now;
+            }
+
+            this.touchPointerId = e.pointerId;
+            this.touchActive = true;
+            this.touchPos = new Vector2(e.clientX, e.clientY);
+            try { (e.target as HTMLElement).setPointerCapture(e.pointerId); } catch { /* ignore */ }
+        };
+
+        const onPointerMove = (e: PointerEvent) => {
+            if (!this.touchActive || this.touchPointerId !== e.pointerId) return;
+            this.touchPos = new Vector2(e.clientX, e.clientY);
+        };
+
+        const onPointerUp = (e: PointerEvent) => {
+            if (this.touchPointerId !== e.pointerId) return;
+            this.touchActive = false;
+            this.touchPointerId = null;
+        };
+
+        const onPointerCancel = (e: PointerEvent) => {
+            if (this.touchPointerId !== e.pointerId) return;
+            this.touchActive = false;
+            this.touchPointerId = null;
+        };
+
+        this.touchHandlers = { onPointerDown, onPointerMove, onPointerUp, onPointerCancel };
+
+        this.canvas.addEventListener('pointerdown', onPointerDown);
+        this.canvas.addEventListener('pointermove', onPointerMove);
+        this.canvas.addEventListener('pointerup', onPointerUp);
+        this.canvas.addEventListener('pointercancel', onPointerCancel);
+    }
+
+    private detachTouchDragListeners(): void {
+        if (!this.canvas || !this.touchListenersAttached) return;
+        this.touchListenersAttached = false;
+        const h = this.touchHandlers;
+        if (!h) return;
+        this.canvas.removeEventListener('pointerdown', h.onPointerDown);
+        this.canvas.removeEventListener('pointermove', h.onPointerMove);
+        this.canvas.removeEventListener('pointerup', h.onPointerUp);
+        this.canvas.removeEventListener('pointercancel', h.onPointerCancel);
+        this.touchHandlers = null;
     }
 
     private updateHUD(): void {
@@ -784,6 +911,15 @@ export class PlayPage {
         this.lastBossCountdownSecond = null;
     }
 
+    private escapeHtml(text: string): string {
+        return text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/\"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
     getElement(): HTMLElement {
         return this.container;
     }
@@ -792,6 +928,7 @@ export class PlayPage {
         console.log('[PlayPage] Destroying...');
         this.isDestroyed = true;
         this.unsubscribeLocale?.();
+        this.unsubscribeAuth?.();
         this.unsubscribeSettings?.();
         this.unsubscribeSettings = null;
         this.cleanup();

@@ -179,6 +179,13 @@ export class SettingsPage {
         return `
             <div class="settings-section">
                 <div class="setting-row">
+                    <span class="setting-label">${t('settings.mobileControlMode')}</span>
+                    <select class="setting-select" id="mobileControlMode">
+                        <option value="joystick" ${settings.controls.mobileControlMode === 'joystick' ? 'selected' : ''}>${t('settings.mobileControlJoystick')}</option>
+                        <option value="touch" ${settings.controls.mobileControlMode === 'touch' ? 'selected' : ''}>${t('settings.mobileControlTouch')}</option>
+                    </select>
+                </div>
+                <div class="setting-row">
                     <span class="setting-label">${t('settings.joystickSize')}</span>
                     <div class="setting-control slider">
                         <input type="range" id="joystickSize" min="80" max="200" value="${settings.controls.joystickSize}">
@@ -199,6 +206,13 @@ export class SettingsPage {
                         <span class="slider-value">${settings.controls.sensitivity}</span>
                     </div>
                 </div>
+
+                ${settings.controls.mobileControlMode === 'touch' ? `
+                    <div class="panel" style="margin-top: 10px;">
+                        <div class="panel-title">${t('settings.touchHintTitle')}</div>
+                        <div class="panel-text">${t('settings.touchHintText')}</div>
+                    </div>
+                ` : ''}
             </div>
         `;
     }
@@ -384,6 +398,9 @@ export class SettingsPage {
                 break;
             case 'sensitivity':
                 this.settingsManager.updateSettings({ controls: { ...settings.controls, sensitivity: value as number } });
+                break;
+            case 'mobileControlMode':
+                this.settingsManager.updateSettings({ controls: { ...settings.controls, mobileControlMode: value as 'joystick' | 'touch' } });
                 break;
 
             // Graphics

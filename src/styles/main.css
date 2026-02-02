@@ -1835,6 +1835,44 @@ select:focus-visible {
   flex-wrap: wrap;
 }
 
+/* ===== Mobile Layout Improvements ===== */
+@media (max-width: 480px) {
+  .page {
+    padding: var(--space-m);
+  }
+
+  .page-header {
+    margin-bottom: var(--space-l);
+  }
+
+  .page-header-split {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .page-actions {
+    justify-content: flex-start;
+  }
+
+  .settings-page {
+    max-width: 100%;
+  }
+
+  .settings-page .settings-body {
+    padding: var(--space-m);
+  }
+
+  .leaderboard-page-head,
+  .leaderboard-page-row {
+    grid-template-columns: 42px 1fr 70px;
+    padding: 10px var(--space-m);
+  }
+
+  .play-start-content {
+    padding: var(--space-l);
+  }
+}
+
 .status-pill {
   display: inline-flex;
   align-items: center;

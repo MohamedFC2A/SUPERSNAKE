@@ -19,6 +19,7 @@ export interface GameSettings {
         joystickSize: number;
         joystickPosition: 'left' | 'right';
         sensitivity: number;
+        mobileControlMode: 'joystick' | 'touch';
     };
     accessibility: {
         colorblindMode: 'none' | 'deuteranopia' | 'protanopia' | 'tritanopia';
@@ -52,6 +53,7 @@ const DEFAULT_SETTINGS: GameSettings = {
         joystickSize: 120,
         joystickPosition: 'left',
         sensitivity: 5,
+        mobileControlMode: 'joystick',
     },
     accessibility: {
         colorblindMode: 'none',
