@@ -78,14 +78,27 @@ export function getAuthDebugSnapshot(): Record<string, any> {
 async function loadProfile(userId: string): Promise<ProfileRow | null> {
   if (!supabase) return null;
 
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id, username, avatar_url, updated_at')
-    .eq('id', userId)
-    .maybeSingle();
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, username, avatar_url, updated_at')
+      .eq('id', userId)
+      .maybeSingle();
 
-  if (error) return null;
-  return data as ProfileRow | null;
+    if (error) return null;
+    return data as ProfileRow | null;
+  } catch {
+    // Never block auth state on a profile fetch (can be aborted during navigation).
+    return null;
+  }
+}
+
+function loadProfileInBackground(userId: string): void {
+  void (async () => {
+    const profile = await loadProfile(userId);
+    // Only set if still the same user.
+    if (state.user?.id === userId) setState({ profile });
+  })();
 }
 
 async function handleOAuthCallbackIfPresent(): Promise<void> {
@@ -135,8 +148,9 @@ async function handleOAuthCallbackIfPresent(): Promise<void> {
     }
     const session = data.session ?? null;
     const user = session?.user ?? null;
-    const profile = user ? await loadProfile(user.id) : null;
-    setState({ loading: false, session, user, profile });
+    // Set session/user immediately; load profile async so auth UI doesn't get stuck.
+    setState({ loading: false, session, user, profile: null });
+    if (user) loadProfileInBackground(user.id);
   } catch {
     setAuthError('Sign-in failed (session exchange)');
     setState({ loading: false });
@@ -175,8 +189,8 @@ export function initAuth(): void {
       const { data } = await supabase.auth.getSession();
       const session = data.session ?? null;
       const user = session?.user ?? null;
-      const profile = user ? await loadProfile(user.id) : null;
-      setState({ loading: false, session, user, profile });
+      setState({ loading: false, session, user, profile: null });
+      if (user) loadProfileInBackground(user.id);
     } catch {
       setState({ loading: false });
     }
@@ -186,8 +200,9 @@ export function initAuth(): void {
     lastAuthEvent = _event;
     lastAuthEventAt = new Date().toISOString();
     const user = session?.user ?? null;
-    const profile = user ? await loadProfile(user.id) : null;
-    setState({ session: session ?? null, user, profile, loading: false });
+    // Update immediately, then load profile async.
+    setState({ session: session ?? null, user, profile: null, loading: false });
+    if (user) loadProfileInBackground(user.id);
   });
 }
 
@@ -208,8 +223,8 @@ export async function refreshSession(): Promise<void> {
     const { data } = await supabase.auth.getSession();
     const session = data.session ?? null;
     const user = session?.user ?? null;
-    const profile = user ? await loadProfile(user.id) : null;
-    setState({ loading: false, session, user, profile });
+    setState({ loading: false, session, user, profile: null });
+    if (user) loadProfileInBackground(user.id);
   } catch (e: any) {
     setAuthError(e?.message || 'Failed to refresh session');
     setState({ loading: false });
@@ -249,7 +264,10 @@ export async function updateUsername(username: string): Promise<void> {
   const clean = username.trim().slice(0, 20);
   if (!clean) return;
 
-  await supabase.from('profiles').upsert({ id: user.id, username: clean }, { onConflict: 'id' });
-  const profile = await loadProfile(user.id);
-  setState({ profile });
+  try {
+    await supabase.from('profiles').upsert({ id: user.id, username: clean }, { onConflict: 'id' });
+  } catch {
+    // ignore
+  }
+  loadProfileInBackground(user.id);
 }
