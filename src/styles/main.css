@@ -2965,6 +2965,125 @@ select:focus-visible {
   margin-bottom: var(--space-xl);
 }
 
+.install-required-card {
+  margin: 0 auto var(--space-l);
+  padding: var(--space-l);
+  border-radius: var(--radius-l);
+  background: rgba(17, 17, 17, 0.30);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
+  text-align: start;
+}
+
+.install-required-title {
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  margin-bottom: var(--space-xs);
+}
+
+.install-required-text {
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.35;
+  margin-bottom: var(--space-m);
+}
+
+.install-required-hint {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-top: var(--space-s);
+}
+
+.install-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-l);
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 5000;
+}
+
+.install-card {
+  position: relative;
+  width: min(520px, 94vw);
+  padding: var(--space-xl);
+  border-radius: var(--radius-l);
+  background: rgba(17, 17, 17, 0.32);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.65);
+}
+
+.install-icon {
+  font-size: 40px;
+  margin-bottom: var(--space-m);
+}
+
+.install-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 800;
+  margin-bottom: var(--space-xs);
+}
+
+.install-text {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin-bottom: var(--space-m);
+}
+
+.install-steps {
+  display: grid;
+  gap: var(--space-s);
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-m);
+  padding: var(--space-m);
+  margin-bottom: var(--space-l);
+}
+
+.install-step {
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.install-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-s);
+}
+
+.install-actions .btn {
+  width: 100%;
+}
+
+.install-close {
+  position: absolute;
+  top: var(--space-m);
+  inset-inline-end: var(--space-m);
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-primary);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.install-close:hover {
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
 .play-name-input-group {
   margin-bottom: var(--space-l);
   text-align: start;

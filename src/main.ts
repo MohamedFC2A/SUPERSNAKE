@@ -4,6 +4,7 @@ import { getRouter } from './router';
 import { Layout } from './ui/Layout';
 import { SettingsManager } from './game/SettingsManager';
 import { getAudioManager } from './audio';
+import { captureBeforeInstallPrompt } from './pwa/install';
 import { HomePage } from './ui/pages/HomePage';
 import { PlayPage } from './ui/pages/PlayPage';
 import { ProfilePage } from './ui/pages/ProfilePage';
@@ -111,6 +112,16 @@ function main(): void {
 
     // Initialize router
     router.init();
+
+    // PWA: capture install prompt for mobile "install required" flow
+    window.addEventListener('beforeinstallprompt', captureBeforeInstallPrompt as any);
+
+    // PWA: register service worker (production only)
+    if ('serviceWorker' in navigator && !import.meta.env.DEV) {
+        navigator.serviceWorker.register('/sw.js').catch(() => {
+            // Ignore SW errors (still usable online)
+        });
+    }
 
     // Debug: Show FPS in development
     if (import.meta.env.DEV) {
