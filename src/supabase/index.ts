@@ -9,6 +9,7 @@ export {
   signOut,
   updateUsername,
   updateTheme,
+  updateProfileSettings,
   type AuthState,
   type ProfileRow,
 } from './auth';

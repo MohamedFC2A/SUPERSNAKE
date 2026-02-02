@@ -117,6 +117,18 @@ export class SettingsManager {
         return { ...this.settings };
     }
 
+    /**
+     * Replace current settings from a remote (Supabase) source.
+     * This keeps defaults for any missing fields and notifies listeners.
+     */
+    applyRemoteSettings(remote: unknown): void {
+        if (!remote || typeof remote !== 'object') return;
+        const merged = this.mergeSettings(DEFAULT_SETTINGS, remote as any);
+        this.settings = merged;
+        this.applySettings();
+        this.notifyListeners();
+    }
+
     updateSettings(partial: DeepPartial<GameSettings>): void {
         this.settings = this.mergeSettings(this.settings, partial);
         this.saveSettings();

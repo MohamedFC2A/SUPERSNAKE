@@ -1,11 +1,12 @@
 import './styles/main.css';
 import { initI18n } from './i18n';
+import { setLocale } from './i18n';
 import { getRouter } from './router';
 import { Layout } from './ui/Layout';
 import { SettingsManager } from './game/SettingsManager';
 import { getAudioManager } from './audio';
 import { captureBeforeInstallPrompt } from './pwa/install';
-import { initAuth } from './supabase';
+import { getAuthState, initAuth, subscribeAuth, updateProfileSettings } from './supabase';
 import { applyTheme } from './theme/theme';
 import { HomePage } from './ui/pages/HomePage';
 import { PlayPage } from './ui/pages/PlayPage';
@@ -15,7 +16,6 @@ import { SettingsPage } from './ui/pages/SettingsPage';
 import { ChangelogPage } from './ui/pages/ChangelogPage';
 import { NotFoundPage } from './ui/pages/NotFoundPage';
 import { AuthRequiredPage } from './ui/pages/AuthRequiredPage';
-import { getAuthState, subscribeAuth } from './supabase';
 
 /**
  * Snake Survival Game - Entry Point with Router
@@ -100,9 +100,47 @@ function main(): void {
 
     // Mandatory login: re-render nav + redirect away from protected routes when signed out.
     const protectedPaths = new Set(['/','/play','/leaderboards','/changelog','/settings']);
+    // Sync settings + theme from Supabase profile and persist changes back to Supabase.
+    let applyingRemoteSettings = false;
+    let lastRemoteSettingsJson: string | null = null;
+    let persistTimer: number | null = null;
+
+    const schedulePersistSettings = (): void => {
+        if (persistTimer) window.clearTimeout(persistTimer);
+        persistTimer = window.setTimeout(() => {
+            persistTimer = null;
+            const auth = getAuthState();
+            if (!auth.user) return;
+            if (applyingRemoteSettings) return;
+            void updateProfileSettings(settingsManager.getSettings());
+        }, 600);
+    };
+
+    settingsManager.subscribe(() => {
+        schedulePersistSettings();
+    });
+
     subscribeAuth((auth) => {
         const theme = auth.profile?.theme === 'light' ? 'light' : 'dark';
         applyTheme(theme);
+
+        // Apply remote settings (once per change)
+        const remoteSettings = auth.profile?.settings;
+        const json = remoteSettings ? JSON.stringify(remoteSettings) : null;
+        if (json && json !== lastRemoteSettingsJson) {
+            lastRemoteSettingsJson = json;
+            applyingRemoteSettings = true;
+            settingsManager.applyRemoteSettings(remoteSettings);
+            // Apply remote language preference if present
+            try {
+                const lang = (remoteSettings as any)?.accessibility?.language;
+                if (lang === 'ar' || lang === 'en') setLocale(lang);
+            } catch {
+                // ignore
+            }
+            applyingRemoteSettings = false;
+        }
+
         const path = router.getCurrentPath() || '/';
         if (!auth.user && protectedPaths.has(path)) {
             router.navigate('/profile');
