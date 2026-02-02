@@ -313,9 +313,14 @@ export async function updateUsername(username: string): Promise<void> {
   if (!clean) return;
 
   try {
-    await supabase.from('profiles').upsert({ id: user.id, username: clean }, { onConflict: 'id' });
-  } catch {
-    // ignore
+    const { error } = await supabase.from('profiles').upsert({ id: user.id, username: clean }, { onConflict: 'id' });
+    if (error) {
+      setAuthError(error.message || 'Failed to update username');
+      console.warn('[supabase] updateUsername failed:', error);
+    }
+  } catch (e: any) {
+    setAuthError(e?.message || 'Failed to update username');
+    console.warn('[supabase] updateUsername failed:', e);
   }
 }
 
@@ -328,9 +333,14 @@ export async function updateTheme(theme: 'dark' | 'light'): Promise<void> {
   // Optimistic update so UI doesn't "snap back" before the profile refresh finishes.
   patchProfile({ id: user.id, theme: clean });
   try {
-    await supabase.from('profiles').upsert({ id: user.id, theme: clean }, { onConflict: 'id' });
-  } catch {
-    // ignore
+    const { error } = await supabase.from('profiles').upsert({ id: user.id, theme: clean }, { onConflict: 'id' });
+    if (error) {
+      setAuthError(error.message || 'Failed to update theme');
+      console.warn('[supabase] updateTheme failed:', error);
+    }
+  } catch (e: any) {
+    setAuthError(e?.message || 'Failed to update theme');
+    console.warn('[supabase] updateTheme failed:', e);
   }
 }
 
@@ -342,8 +352,13 @@ export async function updateProfileSettings(settings: unknown): Promise<void> {
   // Optimistic update so UI doesn't revert while saving.
   patchProfile({ id: user.id, settings });
   try {
-    await supabase.from('profiles').upsert({ id: user.id, settings }, { onConflict: 'id' });
-  } catch {
-    // ignore
+    const { error } = await supabase.from('profiles').upsert({ id: user.id, settings }, { onConflict: 'id' });
+    if (error) {
+      setAuthError(error.message || 'Failed to save settings');
+      console.warn('[supabase] updateProfileSettings failed:', error);
+    }
+  } catch (e: any) {
+    setAuthError(e?.message || 'Failed to save settings');
+    console.warn('[supabase] updateProfileSettings failed:', e);
   }
 }

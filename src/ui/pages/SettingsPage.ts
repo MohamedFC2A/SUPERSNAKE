@@ -2,7 +2,7 @@ import { t, onLocaleChange } from '../../i18n';
 import { SettingsManager, GameSettings } from '../../game/SettingsManager';
 import { setLocale, getLocale } from '../../i18n';
 import { applyUpdate, checkForUpdate } from '../../update/appUpdate';
-import { getAuthState, updateTheme } from '../../supabase';
+import { getAuthState, peekAuthErrors, updateTheme } from '../../supabase';
 import { applyTheme, type Theme } from '../../theme/theme';
 import { subscribeAuth } from '../../supabase';
 
@@ -128,6 +128,10 @@ export class SettingsPage {
     private updateContent(): void {
         const settings = this.settingsManager.getSettings();
         const currentTheme: Theme = (getAuthState().profile?.theme === 'light' ? 'light' : 'dark');
+        const auth = getAuthState();
+        const configured = auth.configured;
+        const signedIn = !!auth.user;
+        const lastErr = peekAuthErrors()[0]?.message || null;
 
         this.container.innerHTML = `
             <div class="page-header page-header-split">
@@ -143,6 +147,14 @@ export class SettingsPage {
                         ${t('settings.reset')}
                     </button>
                 </div>
+            </div>
+
+            <div class="panel" style="max-width: 760px; margin: 0 auto 12px auto;">
+                <div class="panel-title">Cloud sync</div>
+                <div class="panel-text" id="cloudSyncStatus">
+                    ${!configured ? 'Supabase is not configured on this deployment.' : (signedIn ? 'Enabled (saving to your account).' : 'Sign in to enable cloud sync.')}
+                </div>
+                ${lastErr ? `<div class="panel-text" id="cloudSyncError" style="margin-top:8px; opacity:.9;">Last error: ${this.escapeHtml(lastErr)}</div>` : `<div id="cloudSyncError" hidden></div>`}
             </div>
 
             <div class="settings-tabs-container">
