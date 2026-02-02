@@ -1,6 +1,7 @@
 import { t, onLocaleChange } from '../../i18n';
 import { SettingsManager, GameSettings } from '../../game/SettingsManager';
 import { setLocale, getLocale } from '../../i18n';
+import { applyUpdate, checkForUpdate } from '../../update/appUpdate';
 
 /**
  * SettingsPage - Full page settings with all options
@@ -12,6 +13,10 @@ export class SettingsPage {
     private activeTab: string = 'audio';
     private showResetModal: boolean = false;
     private savedHintTimeout: number | null = null;
+    private updateAvailable: boolean = false;
+    private checkingUpdate: boolean = false;
+    private updateError: string | null = null;
+    private onVisibilityChange: (() => void) | null = null;
 
     constructor(settingsManager: SettingsManager) {
         this.settingsManager = settingsManager;
@@ -22,6 +27,31 @@ export class SettingsPage {
         this.unsubscribeLocale = onLocaleChange(() => {
             this.updateContent();
         });
+
+        // Check updates when settings opens + when returning to the tab.
+        void this.checkUpdatesIfNeeded();
+        const handler = () => {
+            if (document.visibilityState === 'visible') void this.checkUpdatesIfNeeded();
+        };
+        document.addEventListener('visibilitychange', handler);
+        this.onVisibilityChange = () => document.removeEventListener('visibilitychange', handler);
+    }
+
+    private async checkUpdatesIfNeeded(): Promise<void> {
+        if (this.checkingUpdate) return;
+        this.checkingUpdate = true;
+        const prevAvailable = this.updateAvailable;
+        const prevError = this.updateError;
+
+        const res = await checkForUpdate();
+        this.updateAvailable = res.updateAvailable;
+        this.updateError = res.error;
+        this.checkingUpdate = false;
+
+        // Re-render only when state changes (avoid disrupting sliders).
+        if (prevAvailable !== this.updateAvailable || prevError !== this.updateError) {
+            this.updateContent();
+        }
     }
 
     private updateContent(): void {
@@ -71,6 +101,23 @@ export class SettingsPage {
                     ${this.renderTabContent(settings)}
                 </div>
             </div>
+
+            ${this.updateAvailable ? `
+                <div class="settings-section">
+                    <div class="setting-row">
+                        <div>
+                            <div class="section-title">${t('settings.updateTitle')}</div>
+                            <div class="section-subtitle">${t('settings.updateSubtitle')}</div>
+                            ${this.updateError ? `<div class="panel panel-warning" style="margin-top:10px;"><div class="panel-text">${this.escapeHtml(this.updateError)}</div></div>` : ''}
+                        </div>
+                        <div class="setting-control">
+                            <button class="btn btn-primary" id="updateGameBtn" type="button">
+                                ${this.checkingUpdate ? t('settings.updateChecking') : t('settings.updateButton')}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ` : ''}
 
             ${this.showResetModal ? this.renderResetModal() : ''}
         `;
@@ -300,6 +347,14 @@ export class SettingsPage {
                 this.handleSettingChange(target.id, target.value);
             });
         });
+
+        const updateBtn = this.container.querySelector('#updateGameBtn') as HTMLButtonElement | null;
+        updateBtn?.addEventListener('click', async () => {
+            if (this.checkingUpdate) return;
+            this.checkingUpdate = true;
+            this.updateContent();
+            await applyUpdate();
+        });
     }
 
     private handleSettingChange(id: string, value: string | number | boolean): void {
@@ -396,12 +451,22 @@ export class SettingsPage {
         `;
     }
 
+    private escapeHtml(text: string): string {
+        return text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/\"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
     getElement(): HTMLElement {
         return this.container;
     }
 
     destroy(): void {
         this.unsubscribeLocale?.();
+        this.onVisibilityChange?.();
         if (this.savedHintTimeout) {
             window.clearTimeout(this.savedHintTimeout);
             this.savedHintTimeout = null;

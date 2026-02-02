@@ -133,7 +133,11 @@
         "none": "بدون",
         "highContrast": "تباين عالي",
         "reducedMotion": "تقليل الحركة",
-        "fontScale": "حجم الخط"
+        "fontScale": "حجم الخط",
+        "updateTitle": "تحديث اللعبة",
+        "updateSubtitle": "يوجد إصدار جديد. سيتم حذف أي كاش قديم وإعادة تحميل الموقع.",
+        "updateButton": "تحديث الآن",
+        "updateChecking": "جارِ التحديث…"
     },
     "hud": {
         "score": "النقاط",

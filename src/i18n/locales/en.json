@@ -133,7 +133,11 @@
         "none": "None",
         "highContrast": "High Contrast",
         "reducedMotion": "Reduced Motion",
-        "fontScale": "Font Scale"
+        "fontScale": "Font Scale",
+        "updateTitle": "Update game",
+        "updateSubtitle": "A new version is available. Clear old cache and reload.",
+        "updateButton": "Update now",
+        "updateChecking": "Updating…"
     },
     "hud": {
         "score": "Score",
