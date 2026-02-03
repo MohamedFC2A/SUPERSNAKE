@@ -80,6 +80,10 @@
   /* ===== Touch Target ===== */
   --touch-target-min: 48px;
 
+  /* ===== Layout Tokens ===== */
+  --content-max-width: 1100px;
+  --content-padding-inline: clamp(14px, 3vw, 32px);
+
   /* ===== Focus Ring ===== */
   --focus-ring: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent);
 }
@@ -1833,8 +1837,8 @@ select:focus-visible {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 var(--space-l);
-  max-width: 1100px;
+  padding: 0 var(--content-padding-inline);
+  max-width: var(--content-max-width);
   margin: 0 auto;
   gap: var(--space-m);
 }
@@ -1945,8 +1949,8 @@ select:focus-visible {
   .nav-links {
     position: absolute;
     top: 64px;
-    inset-inline-start: var(--space-m);
-    inset-inline-end: var(--space-m);
+    inset-inline-start: var(--content-padding-inline);
+    inset-inline-end: var(--content-padding-inline);
     flex-direction: column;
     background: var(--glass-bg-strong);
     border: 1px solid var(--glass-border);
@@ -1955,6 +1959,8 @@ select:focus-visible {
     display: none;
     z-index: 999;
     box-shadow: var(--glass-shadow);
+    max-height: calc(100vh - 72px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    overflow: auto;
   }
 
   .nav-links.open {
@@ -1976,12 +1982,15 @@ select:focus-visible {
   flex: 1;
   overflow-y: auto;
   background: var(--bg-primary);
+  overscroll-behavior: contain;
 }
 
 /* ===== Page Base ===== */
 .page {
   min-height: 100%;
-  padding: var(--space-l);
+  width: min(100%, var(--content-max-width));
+  margin: 0 auto;
+  padding: var(--space-l) var(--content-padding-inline);
   animation: fadeIn 0.3s ease;
 }
 
@@ -2012,7 +2021,7 @@ select:focus-visible {
 /* ===== Mobile Layout Improvements ===== */
 @media (max-width: 480px) {
   .page {
-    padding: var(--space-m);
+    padding: var(--space-m) var(--content-padding-inline);
   }
 
   .page-header {
@@ -2098,7 +2107,7 @@ select:focus-visible {
   justify-content: center;
   text-align: center;
   padding: var(--space-xl);
-  min-height: calc(100vh - 60px);
+  min-height: calc(100vh - 64px);
 }
 
 .home-hero {
@@ -2625,7 +2634,7 @@ select:focus-visible {
   align-items: center;
   justify-content: center;
   text-align: center;
-  min-height: calc(100vh - 60px);
+  min-height: calc(100vh - 64px);
 }
 
 .not-found-content {
