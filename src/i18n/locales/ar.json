@@ -182,6 +182,8 @@
         "perfSuperUltra": "SUPER ULTRA",
         "fpsGenBeta": "FPS Gen (Beta)",
         "fpsGenBetaHint": "وضع قوي للجوال: يقلل الدقة ويوقف الإضافات ويخفف العناصر لأقصى سلاسة. (ليس توليد فريمات حقيقي).",
+        "mobilePerformance": "وضع أداء الجوال",
+        "mobilePerformanceHint": "يعطي الأولوية لثبات الـ FPS بتقليل التأثيرات البصرية. يُنصح بتفعيله لمعظم أجهزة الجوال.",
         "purgeCache": "مسح الكاش",
         "purgeCacheHint": "يحذف ملفات الكاش الزائدة ويعيد تحميل اللعبة.",
         "quality": "الجودة",

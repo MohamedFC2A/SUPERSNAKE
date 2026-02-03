@@ -1,3 +1,5 @@
+import { getDeviceProfile, getDetectedRefreshHz, type DeviceProfile } from '../utils/performance';
+
 export type GameState = 'menu' | 'playing' | 'gameover';
 
 export interface GameEvents {
@@ -8,66 +10,46 @@ export interface GameEvents {
     botKilled: (botName: string) => void;
 }
 
-// Detect mobile/low-end devices
-function isTouchDevice(): boolean {
-    return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-}
-
-function isLowEndDevice(): boolean {
-    const memory = (navigator as any).deviceMemory;
-    const cores = navigator.hardwareConcurrency;
-    return (memory && memory <= 4) || (cores && cores <= 4);
-}
-
-/**
- * Detect display refresh rate - attempts to determine if running on 120Hz display
- */
-function detectRefreshRate(): number {
-    // Check for high refresh rate using modern APIs
-    if ('getScreenDetails' in window) {
-        // @ts-ignore - Experimental API
-        const screenDetails = window.getScreenDetails?.();
-        if (screenDetails?.currentScreen?.refreshRate) {
-            return screenDetails.currentScreen.refreshRate;
-        }
-    }
-    
-    // Check standard screen properties
-    // @ts-ignore
-    if (window.screen?.refreshRate) {
-        // @ts-ignore
-        return window.screen.refreshRate;
-    }
-    
-    // Default assumption - most devices are 60Hz
-    return 60;
+export interface LoopMetrics {
+    fps: number;
+    updateMs: number;
+    renderMs: number;
+    updateSteps: number;
+    renderSkipped: number;
+    droppedSteps: number;
+    targetUpdateHz: number;
+    targetRenderHz: number;
 }
 
 /**
- * GameLoop - Main game loop with fixed timestep
- * Optimized for mobile performance with 120Hz cap
+ * GameLoop - Main game loop with configurable update/render rates
+ * 
+ * Key design changes:
+ * - Single source of truth for timing (no external frameSkip logic)
+ * - Separate update and render rates for flexibility
+ * - Uses unified DeviceProfile from performance.ts
+ * - No double frame-cutting bugs
  */
 export class GameLoop {
+    // Timing
     private lastTime: number = 0;
     private accumulatedTime: number = 0;
-    private FIXED_TIMESTEP: number = 1000 / 60;
-    private readonly MAX_UPDATES_PER_FRAME: number;
     private isRunning: boolean = false;
     private animationFrameId: number = 0;
-    
-    // Mobile optimization
-    private readonly isTouch: boolean;
-    private readonly isLowEnd: boolean;
-    private frameSkip: number = 1;
-    private frameCount: number = 0;
-    
-    // 120Hz display handling
-    private readonly targetFPS: number;
-    private readonly minFrameTime: number;
-    private lastRenderTimestamp: number = 0;
-    private readonly detectedRefreshRate: number;
-    private highRefreshDetected: boolean = false;
+    private boundLoop: (timestamp: number) => void;
 
+    // Configurable rates
+    private targetUpdateHz: number = 60;
+    private targetRenderHz: number = 60;
+    private updateIntervalMs: number = 1000 / 60;
+    private renderIntervalMs: number = 1000 / 60;
+    private lastRenderMs: number = 0;
+
+    // Device profile (cached)
+    private readonly deviceProfile: DeviceProfile;
+    private readonly MAX_UPDATES_PER_FRAME: number;
+
+    // Callbacks
     private updateCallback: ((dt: number) => void) | null = null;
     private renderCallback: ((alpha: number) => void) | null = null;
 
@@ -77,12 +59,43 @@ export class GameLoop {
     public currentFPS: number = 0;
     public lastUpdateTime: number = 0;
     public lastRenderTime: number = 0;
+
+    // Metrics
+    private updateStepsThisFrame: number = 0;
+    private renderSkippedThisSecond: number = 0;
     private droppedStepsThisSecond: number = 0;
     public droppedStepsLastSecond: number = 0;
-    
-    // Adaptive quality
-    private slowFrames: number = 0;
-    private adaptiveQuality: boolean = true;
+    private renderSkippedLastSecond: number = 0;
+
+    constructor(initialUpdateHz?: number, initialRenderHz?: number) {
+        this.boundLoop = this.loop.bind(this);
+
+        // Use unified device profile
+        this.deviceProfile = getDeviceProfile();
+
+        // Set reasonable defaults based on device tier
+        if (this.deviceProfile.isLowEnd) {
+            this.MAX_UPDATES_PER_FRAME = 1;
+            this.setTargetUpdateHz(30);
+            this.setTargetRenderHz(30);
+        } else if (this.deviceProfile.isTouch) {
+            this.MAX_UPDATES_PER_FRAME = 2;
+            this.setTargetUpdateHz(60);
+            this.setTargetRenderHz(60);
+        } else {
+            this.MAX_UPDATES_PER_FRAME = 3;
+            this.setTargetUpdateHz(60);
+            this.setTargetRenderHz(60);
+        }
+
+        // Allow overrides from constructor
+        if (initialUpdateHz !== undefined) {
+            this.setTargetUpdateHz(initialUpdateHz);
+        }
+        if (initialRenderHz !== undefined) {
+            this.setTargetRenderHz(initialRenderHz);
+        }
+    }
 
     public onUpdate(callback: (dt: number) => void): void {
         this.updateCallback = callback;
@@ -92,51 +105,30 @@ export class GameLoop {
         this.renderCallback = callback;
     }
 
-    private boundLoop: (timestamp: number) => void;
+    /**
+     * Set target update rate (Hz)
+     */
+    public setTargetUpdateHz(hz: number): void {
+        const clamped = Math.max(15, Math.min(120, hz));
+        this.targetUpdateHz = clamped;
+        this.updateIntervalMs = 1000 / clamped;
+    }
 
-    constructor(targetFPS?: number) {
-        this.boundLoop = this.loop.bind(this);
-        
-        // Detect device capabilities
-        this.isTouch = isTouchDevice();
-        this.isLowEnd = isLowEndDevice();
-        this.detectedRefreshRate = detectRefreshRate();
-        
-        // CAP AT 60 FPS MAX - even on 120Hz displays
-        // This prevents battery drain and overheating on mobile
-        if (targetFPS) {
-            this.targetFPS = Math.min(targetFPS, 60); // Hard cap at 60
-        } else if (this.isLowEnd) {
-            this.targetFPS = 30;
-        } else if (this.isTouch) {
-            // FORCE 60 FPS CAP on mobile, even if display is 120Hz
-            this.targetFPS = 60;
-            // If we detect 120Hz, enable frame skipping
-            if (this.detectedRefreshRate >= 90) {
-                this.highRefreshDetected = true;
-                this.frameSkip = 2; // Skip every other frame on 120Hz
-            }
-        } else {
-            this.targetFPS = 60;
-        }
-        
-        // Calculate minimum time between frames for capping
-        this.minFrameTime = 1000 / this.targetFPS;
-        
-        // Adjust settings based on device
-        if (this.isLowEnd) {
-            this.MAX_UPDATES_PER_FRAME = 1;
-            this.FIXED_TIMESTEP = 1000 / 30; // 30fps updates for low-end
-            this.frameSkip = Math.max(this.frameSkip, 2);
-        } else if (this.isTouch) {
-            this.MAX_UPDATES_PER_FRAME = 1;
-            this.FIXED_TIMESTEP = 1000 / 60;
-            // frameSkip may already be 2 for 120Hz displays
-        } else {
-            this.MAX_UPDATES_PER_FRAME = 2;
-            this.FIXED_TIMESTEP = 1000 / 60;
-            this.frameSkip = 1;
-        }
+    /**
+     * Set target render rate (Hz)
+     */
+    public setTargetRenderHz(hz: number): void {
+        const clamped = Math.max(15, Math.min(120, hz));
+        this.targetRenderHz = clamped;
+        this.renderIntervalMs = 1000 / clamped;
+    }
+
+    public getTargetUpdateHz(): number {
+        return this.targetUpdateHz;
+    }
+
+    public getTargetRenderHz(): number {
+        return this.targetRenderHz;
     }
 
     public start(): void {
@@ -144,11 +136,10 @@ export class GameLoop {
 
         this.isRunning = true;
         this.lastTime = performance.now();
-        this.lastRenderTimestamp = this.lastTime;
+        this.lastRenderMs = this.lastTime;
         this.accumulatedTime = 0;
         this.perfFrameCount = 0;
         this.fpsTime = this.lastTime;
-        this.slowFrames = 0;
 
         this.animationFrameId = requestAnimationFrame(this.boundLoop);
     }
@@ -160,111 +151,102 @@ export class GameLoop {
         }
     }
 
-    public getMetrics(): { fps: number; updateMs: number; renderMs: number; droppedSteps: number; targetFPS: number } {
+    public getMetrics(): LoopMetrics {
         return {
             fps: this.currentFPS,
             updateMs: this.lastUpdateTime,
             renderMs: this.lastRenderTime,
+            updateSteps: this.updateStepsThisFrame,
+            renderSkipped: this.renderSkippedLastSecond,
             droppedSteps: this.droppedStepsLastSecond,
-            targetFPS: this.targetFPS,
+            targetUpdateHz: this.targetUpdateHz,
+            targetRenderHz: this.targetRenderHz,
         };
     }
-    
-    public isLowEndDevice(): boolean {
-        return this.isLowEnd;
-    }
-    
+
+    // Legacy compatibility
     public getTargetFPS(): number {
-        return this.targetFPS;
+        return this.targetRenderHz;
     }
-    
+
+    public isLowEndDevice(): boolean {
+        return this.deviceProfile.isLowEnd;
+    }
+
     public getDetectedRefreshRate(): number {
-        return this.detectedRefreshRate;
+        return getDetectedRefreshHz();
+    }
+
+    public getDeviceProfile(): DeviceProfile {
+        return this.deviceProfile;
     }
 
     private loop(timestamp: number): void {
         if (!this.isRunning) return;
-        
-        // === 120Hz CAP ENFORCEMENT ===
-        // Time-based throttling to strictly enforce FPS cap
-        const timeSinceLastRender = timestamp - this.lastRenderTimestamp;
-        if (timeSinceLastRender < this.minFrameTime * 0.9) {
-            // Skip this frame - we're running too fast
-            this.animationFrameId = requestAnimationFrame(this.boundLoop);
-            return;
-        }
-        
-        // Frame skipping for low-end devices and 120Hz displays
-        this.frameCount++;
-        if (this.frameCount % this.frameSkip !== 0) {
-            this.animationFrameId = requestAnimationFrame(this.boundLoop);
-            return;
-        }
 
         const deltaTime = timestamp - this.lastTime;
         this.lastTime = timestamp;
         this.accumulatedTime += deltaTime;
 
-        // Prevent spiral of death - more aggressive on mobile
-        const maxAccumulation = this.isLowEnd ? 100 : 200;
+        // Prevent spiral of death - cap max accumulation
+        const maxAccumulation = this.deviceProfile.isLowEnd ? 100 : 150;
         if (this.accumulatedTime > maxAccumulation) {
-            this.accumulatedTime = this.FIXED_TIMESTEP;
-            this.droppedStepsThisSecond++;
+            const droppedSteps = Math.floor((this.accumulatedTime - this.updateIntervalMs) / this.updateIntervalMs);
+            this.droppedStepsThisSecond += Math.max(0, droppedSteps);
+            this.accumulatedTime = this.updateIntervalMs;
         }
 
         // Fixed timestep updates
         const updateStart = performance.now();
         let updates = 0;
-        while (this.accumulatedTime >= this.FIXED_TIMESTEP) {
-            if (updates >= this.MAX_UPDATES_PER_FRAME) {
-                this.droppedStepsThisSecond += Math.max(1, Math.floor(this.accumulatedTime / this.FIXED_TIMESTEP));
-                this.accumulatedTime = 0;
-                break;
-            }
+        while (this.accumulatedTime >= this.updateIntervalMs && updates < this.MAX_UPDATES_PER_FRAME) {
             if (this.updateCallback) {
-                this.updateCallback(this.FIXED_TIMESTEP);
+                this.updateCallback(this.updateIntervalMs);
             }
-            this.accumulatedTime -= this.FIXED_TIMESTEP;
+            this.accumulatedTime -= this.updateIntervalMs;
             updates++;
         }
+        this.updateStepsThisFrame = updates;
+
+        // If we still have accumulated time beyond max updates, drop it
+        if (this.accumulatedTime >= this.updateIntervalMs) {
+            const remaining = Math.floor(this.accumulatedTime / this.updateIntervalMs);
+            this.droppedStepsThisSecond += remaining;
+            this.accumulatedTime = this.accumulatedTime % this.updateIntervalMs;
+        }
+
         if (updates > 0) {
             this.lastUpdateTime = performance.now() - updateStart;
         }
 
-        // Render with interpolation
-        const renderStart = performance.now();
-        const alpha = this.accumulatedTime / this.FIXED_TIMESTEP;
-        if (this.renderCallback) {
-            this.renderCallback(alpha);
-        }
-        this.lastRenderTime = performance.now() - renderStart;
-        this.lastRenderTimestamp = timestamp;
-        
-        // Adaptive quality: detect slow frames
-        if (this.adaptiveQuality && this.isTouch) {
-            const frameTime = this.lastUpdateTime + this.lastRenderTime;
-            const targetFrameTime = 1000 / (this.isLowEnd ? 30 : 60);
-            
-            if (frameTime > targetFrameTime * 1.5) {
-                this.slowFrames++;
-                // If too many slow frames, reduce quality
-                if (this.slowFrames > 10) {
-                    this.frameSkip = Math.min(this.frameSkip + 1, 3);
-                    this.slowFrames = 0;
-                }
-            } else {
-                this.slowFrames = Math.max(0, this.slowFrames - 1);
+        // Render (with simple gating based on target render rate)
+        const timeSinceRender = timestamp - this.lastRenderMs;
+        const shouldRender = timeSinceRender >= this.renderIntervalMs * 0.9;
+
+        if (shouldRender) {
+            const renderStart = performance.now();
+            const alpha = this.accumulatedTime / this.updateIntervalMs;
+
+            if (this.renderCallback) {
+                this.renderCallback(alpha);
             }
+
+            this.lastRenderTime = performance.now() - renderStart;
+            this.lastRenderMs = timestamp;
+            this.perfFrameCount++;
+        } else {
+            this.renderSkippedThisSecond++;
         }
 
-        // FPS calculation
-        this.perfFrameCount++;
+        // FPS calculation (every second)
         if (timestamp - this.fpsTime >= 1000) {
             this.currentFPS = Math.round(this.perfFrameCount * 1000 / (timestamp - this.fpsTime));
             this.perfFrameCount = 0;
             this.fpsTime = timestamp;
             this.droppedStepsLastSecond = this.droppedStepsThisSecond;
             this.droppedStepsThisSecond = 0;
+            this.renderSkippedLastSecond = this.renderSkippedThisSecond;
+            this.renderSkippedThisSecond = 0;
         }
 
         this.animationFrameId = requestAnimationFrame(this.boundLoop);

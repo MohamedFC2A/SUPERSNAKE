@@ -182,6 +182,8 @@
         "perfSuperUltra": "SUPER ULTRA",
         "fpsGenBeta": "FPS Gen (Beta)",
         "fpsGenBetaHint": "Extreme mobile mode: lowers resolution, disables extras, and reduces objects for max smoothness. (Not real “frame generation”.)",
+        "mobilePerformance": "Mobile Performance Mode",
+        "mobilePerformanceHint": "Prioritizes stable FPS by reducing visual effects. Recommended ON for most mobile devices.",
         "purgeCache": "Clear cache",
         "purgeCacheHint": "Deletes extra cached files and reloads the game.",
         "quality": "Quality",

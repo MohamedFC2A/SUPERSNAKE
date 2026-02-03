@@ -387,6 +387,16 @@ export class SettingsPage {
                     <div class="panel-text">${t('settings.fpsGenBetaHint')}</div>
                 </div>
                 <div class="setting-row" style="margin-top: 10px;">
+                    <span class="setting-label">${t('settings.mobilePerformance')}</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="mobilePerformanceMode" ${settings.graphics.mobilePerformanceMode ? 'checked' : ''}>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="panel" style="margin-top: 10px;">
+                    <div class="panel-text">${t('settings.mobilePerformanceHint')}</div>
+                </div>
+                <div class="setting-row" style="margin-top: 10px;">
                     <div>
                         <div class="section-title">${t('settings.purgeCache')}</div>
                         <div class="section-subtitle">${t('settings.purgeCacheHint')}</div>
@@ -590,6 +600,9 @@ export class SettingsPage {
                 break;
             case 'fpsGenBeta':
                 this.settingsManager.updateSettings({ graphics: { ...settings.graphics, fpsGenBeta: value as boolean } });
+                break;
+            case 'mobilePerformanceMode':
+                this.settingsManager.updateSettings({ graphics: { ...settings.graphics, mobilePerformanceMode: value as boolean } });
                 break;
 
             // Accessibility

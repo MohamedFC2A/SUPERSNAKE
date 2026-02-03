@@ -1,4 +1,5 @@
 import { Vector2, Random } from '../utils/utils';
+import { getDeviceProfile } from '../utils/performance';
 import { Config } from '../config';
 import { GameLoop, GameState } from '../engine/GameLoop';
 import { InputManager } from '../engine/InputManager';
@@ -49,7 +50,7 @@ export class Game {
     private aiNearbySnakes: Snake[] = [];
     private aiNearbyFoods: Food[] = [];
     private visibleFoods: Food[] = [];
-    
+
     // Extreme mobile optimizations
     private renderFrameCount: number = 0;
     private readonly renderSkipFrames: number;
@@ -100,7 +101,7 @@ export class Game {
             }
         })();
         this.perfGovernor = new PerformanceGovernor(this.isTouchDevice);
-        
+
         // EXTREME MOBILE OPTIMIZATION: Render frame skipping
         // On 120Hz displays, we render every 2nd frame (60 FPS cap)
         // On low-end, we may render every 3rd frame (40 FPS)
@@ -175,16 +176,51 @@ export class Game {
                 break;
         }
 
-        // Always bias performance on touch devices: cap DPR harder.
+        // Always bias performance on touch devices using unified DeviceProfile
+        const deviceProfile = getDeviceProfile();
+        const mobilePerformanceMode = settings.graphics.mobilePerformanceMode;
+
         if (this.isTouchDevice) {
-            // Aggressive performance optimization for mobile
-            const isLowEnd = (navigator as any).deviceMemory <= 4 || navigator.hardwareConcurrency <= 4;
-            const maxDpr = isLowEnd ? 1 : (this.graphicsQuality === 'ultra' || this.graphicsQuality === 'super_ultra' ? 1.5 : 1);
-            desiredPixelRatio = Math.min(desiredPixelRatio, maxDpr);
-            
-            // Further reduce on mobile
-            botCount = Math.floor(botCount * (isLowEnd ? 0.5 : 0.7));
-            foodCount = Math.floor(foodCount * (isLowEnd ? 0.5 : 0.6));
+            // Apply tier-based DPR caps when mobilePerformanceMode is ON
+            if (mobilePerformanceMode) {
+                switch (deviceProfile.tier) {
+                    case 'very-low':
+                    case 'low':
+                        desiredPixelRatio = Math.min(desiredPixelRatio, 1.0);
+                        particleIntensity = Math.min(particleIntensity, 0.35);
+                        botCount = Math.min(botCount, 8);
+                        foodCount = Math.min(foodCount, 200);
+                        break;
+                    case 'mid':
+                        desiredPixelRatio = Math.min(desiredPixelRatio, 1.25);
+                        particleIntensity = Math.min(particleIntensity, 0.5);
+                        botCount = Math.min(botCount, 10);
+                        foodCount = Math.min(foodCount, 280);
+                        break;
+                    case 'high':
+                        desiredPixelRatio = Math.min(desiredPixelRatio, 1.5);
+                        particleIntensity = Math.min(particleIntensity, 0.7);
+                        botCount = Math.min(botCount, 12);
+                        foodCount = Math.min(foodCount, 350);
+                        break;
+                    case 'flagship':
+                        // Flagship can handle more, but still cap for stability
+                        desiredPixelRatio = Math.min(desiredPixelRatio, 1.5);
+                        particleIntensity = Math.min(particleIntensity, 0.85);
+                        break;
+                }
+            } else {
+                // mobilePerformanceMode OFF: only apply minimal caps for flagship
+                const isLowEnd = deviceProfile.isLowEnd;
+                const maxDpr = isLowEnd ? 1 : (this.graphicsQuality === 'ultra' || this.graphicsQuality === 'super_ultra' ? 2 : 1.5);
+                desiredPixelRatio = Math.min(desiredPixelRatio, maxDpr);
+
+                // Reduce bots/food proportionally on low-end even when mode is off
+                if (isLowEnd) {
+                    botCount = Math.floor(botCount * 0.6);
+                    foodCount = Math.floor(foodCount * 0.5);
+                }
+            }
         }
 
         // FPS Gen (Beta): extreme mobile mode for maximum smoothness.
@@ -285,7 +321,7 @@ export class Game {
                 adaptiveQuality: true,
             });
             this.fpsManager.start();
-            
+
             // Apply FPS Gen Pro settings
             if (this.fpsGenBetaEnabled) {
                 this.fpsManager.applySettings(this);
@@ -357,7 +393,7 @@ export class Game {
         this.player = null;
         this.bots = [];
         this.isPaused = false;
-        
+
         // Stop FPS Manager
         this.fpsManager?.stop();
         this.fpsManager = null;
@@ -787,7 +823,7 @@ export class Game {
             // Skip this render frame - saves battery on high refresh displays
             return;
         }
-        
+
         this.renderer.clear();
 
         if (this.state === 'playing' && this.player) {
@@ -868,19 +904,19 @@ export class Game {
             const lodDistanceMed = 1200;  // Reduced detail  
             const lodDistanceLow = 2000;  // Minimal detail
             const cullDistance = 3000;    // Don't render beyond this
-            
+
             for (const bot of this.bots) {
                 if (!bot.isAlive) continue;
-                
+
                 // Quick visibility check first
                 if (!this.renderer.isVisible(bot.position, 200)) continue;
-                
+
                 // Distance-based LOD
                 const dist = playerPos.distance(bot.position);
-                
+
                 // Cull very distant bots
                 if (dist > cullDistance) continue;
-                
+
                 // Apply LOD based on distance
                 if (dist > lodDistanceLow) {
                     // Far bots: render at half rate (every other frame)

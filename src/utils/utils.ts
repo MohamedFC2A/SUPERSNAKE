@@ -51,6 +51,15 @@ export class Vector2 {
         return this.subtract(v).magnitude();
     }
 
+    /**
+     * Squared distance (avoids sqrt, use for comparisons)
+     */
+    distanceSq(v: Vector2): number {
+        const dx = this.x - v.x;
+        const dy = this.y - v.y;
+        return dx * dx + dy * dy;
+    }
+
     angle(): number {
         return Math.atan2(this.y, this.x);
     }
