@@ -129,8 +129,11 @@ export class BoostButton {
         // Add/remove ready state
         if (this.chargePercent >= 100) {
             this.container.classList.add('boost-ready');
+            this.container.classList.remove('boost-low');
         } else {
             this.container.classList.remove('boost-ready');
+            if (this.chargePercent <= 18) this.container.classList.add('boost-low');
+            else this.container.classList.remove('boost-low');
         }
     }
 

@@ -36,7 +36,7 @@ export class Snake {
     public mass: number = 0;
     public speed: number = Config.SNAKE_BASE_SPEED;
     public isBoosting: boolean = false;
-    public boostEnergy: number = 100;
+    public boostEnergy: number = Config.BOOST_MAX_ENERGY;
     public speedBoostTimer: number = 0;
     public speedBoostMultiplier: number = Config.SPEED_BOOST_MULTIPLIER;
     public infiniteBoost: boolean = false;
@@ -54,7 +54,7 @@ export class Snake {
 
     public activateInfiniteBoost(): void {
         this.infiniteBoost = true;
-        this.boostEnergy = 100;
+        this.boostEnergy = Config.BOOST_MAX_ENERGY;
     }
 
     // Appearance
@@ -215,7 +215,7 @@ export class Snake {
 
         if (this.infiniteBoost) {
             // Keep the HUD charge full and avoid any drift from other logic.
-            this.boostEnergy = 100;
+            this.boostEnergy = Config.BOOST_MAX_ENERGY;
         }
 
         // Turn towards target direction
@@ -255,17 +255,17 @@ export class Snake {
             if (!this.infiniteBoost) {
                 this.boostEnergy -= Config.SNAKE_BOOST_COST * dtSec;
 
-                // Lose mass while boosting (approx 6 times per second)
-                if (this.segments.length > 5 && Random.bool(6 * dtSec)) {
+                // Lose mass while boosting (reduced rate for a more fun feel with higher boost capacity)
+                if (this.segments.length > 5 && Random.bool(3.25 * dtSec)) {
                     this.shrink(1);
                 }
             }
         } else {
             if (!this.infiniteBoost) {
                 // Regenerate boost energy (approx 12 per second)
-                this.boostEnergy = Math.min(100, this.boostEnergy + 12 * dtSec);
+                this.boostEnergy = Math.min(Config.BOOST_MAX_ENERGY, this.boostEnergy + Config.BOOST_REGEN_PER_SEC * dtSec);
             } else {
-                this.boostEnergy = 100;
+                this.boostEnergy = Config.BOOST_MAX_ENERGY;
             }
         }
 

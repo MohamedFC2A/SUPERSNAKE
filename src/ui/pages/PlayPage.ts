@@ -871,15 +871,17 @@ export class PlayPage {
         const leaderboard = this.game!.getLeaderboard();
         const rank = leaderboard.findIndex(e => e.isPlayer) + 1;
 
+        const maxBoost = Config.BOOST_MAX_ENERGY;
         this.hud.update({
             score: player.score,
             mass: player.mass,
             rank: rank || 1,
             boostCharge: player.boostEnergy,
-            maxBoost: 100,
+            maxBoost,
         });
 
-        this.boostButton?.updateCharge(player.boostEnergy);
+        const pct = maxBoost > 0 ? (player.boostEnergy / maxBoost) * 100 : 0;
+        this.boostButton?.updateCharge(pct);
     }
 
     private updatePerfOverlay(): void {

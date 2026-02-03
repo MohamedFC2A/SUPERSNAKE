@@ -1214,6 +1214,20 @@ select:focus-visible {
   background: var(--color-success);
 }
 
+.boost-low .boost-fill {
+  background: var(--color-warning);
+}
+
+.boost-just-ready {
+  animation: boostJustReady 650ms ease;
+}
+
+@keyframes boostJustReady {
+  0% { transform: scale(1); filter: brightness(1); }
+  40% { transform: scale(1.06); filter: brightness(1.25); }
+  100% { transform: scale(1); filter: brightness(1); }
+}
+
 .hud-danger {
   animation: hudDanger 0.5s ease;
 }
@@ -1457,6 +1471,15 @@ select:focus-visible {
 .boost-button-container.boost-ready {
   opacity: 1;
   transform: scale(1);
+}
+
+.boost-button-container.boost-low .boost-button {
+  border-color: rgba(245, 158, 11, 0.45);
+}
+
+.boost-button-container.boost-low .boost-text,
+.boost-button-container.boost-low .boost-icon {
+  color: rgba(245, 158, 11, 0.95);
 }
 
 .boost-text {

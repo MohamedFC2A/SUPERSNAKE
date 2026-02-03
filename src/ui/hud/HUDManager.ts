@@ -19,6 +19,7 @@ export class HUDManager {
     private rankEl: HTMLElement | null = null;
     private boostBar: HTMLElement | null = null;
     private boostFill: HTMLElement | null = null;
+    private boostWasReady: boolean = true;
 
     private lastData: HUDData = { score: 0, mass: 0, rank: 1, boostCharge: 100, maxBoost: 100 };
     private isVisible: boolean = false;
@@ -99,14 +100,23 @@ export class HUDManager {
         }
 
         if (this.boostFill && (data.boostCharge !== undefined || data.maxBoost !== undefined)) {
-            const percent = (this.lastData.boostCharge / this.lastData.maxBoost) * 100;
+            const percent = this.lastData.maxBoost > 0 ? (this.lastData.boostCharge / this.lastData.maxBoost) * 100 : 0;
             this.boostFill.style.width = `${percent}%`;
 
             // Glow effect when boost is available
             if (percent >= 100) {
                 this.boostBar?.classList.add('boost-ready');
+                this.boostBar?.classList.remove('boost-low');
+                if (!this.boostWasReady) {
+                    this.boostBar?.classList.add('boost-just-ready');
+                    window.setTimeout(() => this.boostBar?.classList.remove('boost-just-ready'), 650);
+                }
+                this.boostWasReady = true;
             } else {
                 this.boostBar?.classList.remove('boost-ready');
+                this.boostWasReady = false;
+                if (percent <= 18) this.boostBar?.classList.add('boost-low');
+                else this.boostBar?.classList.remove('boost-low');
             }
         }
     }
