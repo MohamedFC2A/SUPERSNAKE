@@ -735,6 +735,27 @@ export class Game {
             };
             this.renderer.beginCamera();
 
+            // Determine top-ranked snake (highest score) and mark it for crown rendering.
+            let top: Snake = this.player;
+            let topScore = top.score;
+            // Prefer player on ties so it feels rewarding.
+            const consider = (s: Snake): void => {
+                if (!s.isAlive) return;
+                if (s.score > topScore) {
+                    topScore = s.score;
+                    top = s;
+                    return;
+                }
+                if (s.score === topScore && top && !top.isPlayer && s.isPlayer) {
+                    top = s;
+                }
+            };
+            for (const b of this.bots) consider(b);
+
+            const topId = top.id;
+            this.player.isTopRank = this.player.id === topId;
+            for (const b of this.bots) b.isTopRank = b.id === topId;
+
             // Draw grid
             if (this.showGrid) {
                 this.renderer.drawGrid();

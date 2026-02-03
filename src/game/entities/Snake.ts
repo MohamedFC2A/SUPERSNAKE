@@ -1,6 +1,7 @@
 import { Vector2, Random, ColorUtils } from '../../utils/utils';
 import { Config, SnakePalette } from '../../config';
 import type { RenderOptions } from '../render/RenderOptions';
+import { drawCrown } from '../render/drawCrown';
 
 export interface SnakeSegment {
     position: Vector2;
@@ -46,6 +47,9 @@ export class Snake {
 
     // CollisionSystem scratch (dedupe nearby lists without allocating Sets)
     public _nearbyStamp: number = 0;
+
+    // Visual: top-ranked snake gets a crown
+    public isTopRank: boolean = false;
 
     public activateSpeedBoost(duration: number, multiplier: number = Config.SPEED_BOOST_MULTIPLIER): void {
         this.speedBoostTimer = duration;
@@ -440,6 +444,12 @@ export class Snake {
                     ctx.fill();
                 }
             }
+        }
+
+        // Crown for #1 snake (always readable).
+        if (this.isTopRank) {
+            const baseY = this.position.y - this.headRadius - Math.max(10, this.headRadius * 0.45);
+            drawCrown(ctx, this.position.x, baseY, Math.max(16, this.headRadius * 0.85), options);
         }
 
         // Draw name above head

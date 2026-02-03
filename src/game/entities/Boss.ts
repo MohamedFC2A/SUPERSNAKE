@@ -3,6 +3,7 @@ import { Config } from '../../config';
 import { Snake, SnakeSegment } from './Snake';
 import type { Food } from './Food';
 import type { RenderOptions } from '../render/RenderOptions';
+import { drawCrown } from '../render/drawCrown';
 
 export type BossKind = 'FATE' | 'NONO';
 
@@ -166,53 +167,58 @@ export class Boss {
 
         if (this.kind === 'NONO') {
             this.renderNono(ctx, options);
-            return;
-        }
+        } else {
+            // Body (tail -> neck). Head is drawn separately for a stronger silhouette.
+            ctx.save();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
 
-        // Body (tail -> neck). Head is drawn separately for a stronger silhouette.
-        ctx.save();
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
+            const q = options?.quality ?? 'high';
+            const step = q === 'medium' || q === 'low' ? 2 : 1;
+            const allowHighlights = q === 'ultra' || q === 'super_ultra';
 
-        const q = options?.quality ?? 'high';
-        const step = q === 'medium' || q === 'low' ? 2 : 1;
-        const allowHighlights = q === 'ultra' || q === 'super_ultra';
+            for (let i = this.segments.length - 1; i >= 1; i -= step) {
+                const segment = this.segments[i];
+                const ratio = i / this.segments.length;
 
-        for (let i = this.segments.length - 1; i >= 1; i -= step) {
-            const segment = this.segments[i];
-            const ratio = i / this.segments.length;
+                // Subtle striping + depth (darker tail)
+                const stripe = (i % 7 === 0) ? -18 : 0;
+                const base = 125 - Math.floor(70 * ratio) + stripe;
+                const greenBlue = Math.max(18, Math.min(140, base));
+                ctx.fillStyle = `rgb(210, ${greenBlue}, ${greenBlue})`;
 
-            // Subtle striping + depth (darker tail)
-            const stripe = (i % 7 === 0) ? -18 : 0;
-            const base = 125 - Math.floor(70 * ratio) + stripe;
-            const greenBlue = Math.max(18, Math.min(140, base));
-            ctx.fillStyle = `rgb(210, ${greenBlue}, ${greenBlue})`;
-
-            // Slight body shadow for depth
-            ctx.shadowBlur = 0;
-            ctx.beginPath();
-            ctx.arc(segment.position.x, segment.position.y, segment.radius, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
-
-            // Tiny highlight "scale" (cheap)
-            if (allowHighlights && i % 4 === 0) {
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+                // Slight body shadow for depth
+                ctx.shadowBlur = 0;
                 ctx.beginPath();
-                ctx.arc(segment.position.x - segment.radius * 0.25, segment.position.y - segment.radius * 0.25, Math.max(1, segment.radius * 0.35), 0, Math.PI * 2);
+                ctx.arc(segment.position.x, segment.position.y, segment.radius, 0, Math.PI * 2);
                 ctx.fill();
+                ctx.stroke();
+
+                // Tiny highlight "scale" (cheap)
+                if (allowHighlights && i % 4 === 0) {
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+                    ctx.beginPath();
+                    ctx.arc(segment.position.x - segment.radius * 0.25, segment.position.y - segment.radius * 0.25, Math.max(1, segment.radius * 0.35), 0, Math.PI * 2);
+                    ctx.fill();
+                }
             }
+
+            // Spikes/ridges near head for a scarier profile (limited count for performance)
+            if (allowHighlights) {
+                this.drawRidge(ctx);
+            }
+
+            // Head
+            this.drawHead(ctx);
+
+            ctx.restore();
         }
 
-        // Spikes/ridges near head for a scarier profile (limited count for performance)
-        if (allowHighlights) {
-            this.drawRidge(ctx);
-        }
-
-        // Head
-        this.drawHead(ctx);
-
-        ctx.restore();
+        // Crown for any boss.
+        const head = this.getHead();
+        const headR = this.getHeadRadius();
+        const baseY = head.y - headR - Math.max(14, headR * 0.55);
+        drawCrown(ctx, head.x, baseY, Math.max(22, headR * 0.95), options);
     }
 
     private initializeBody(): void {
