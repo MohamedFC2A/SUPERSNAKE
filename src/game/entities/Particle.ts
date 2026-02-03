@@ -14,19 +14,34 @@ export class Particle {
     public maxLife: number;
     public isAlive: boolean = true;
 
-    constructor(position: Vector2, velocity: Vector2, color: string, radius: number, life: number) {
-        this.position = position.clone();
-        this.velocity = velocity;
+    constructor() {
+        this.position = new Vector2();
+        this.velocity = new Vector2();
+        this.color = '#ffffff';
+        this.radius = 2;
+        this.life = 0;
+        this.maxLife = 0;
+        this.isAlive = false;
+    }
+
+    public reset(x: number, y: number, vx: number, vy: number, color: string, radius: number, life: number): void {
+        this.position.set(x, y);
+        this.velocity.set(vx, vy);
         this.color = color;
         this.radius = radius;
         this.life = life;
         this.maxLife = life;
+        this.isAlive = true;
     }
 
     public update(dt: number): void {
-        this.position = this.position.add(this.velocity);
-        this.velocity = this.velocity.multiply(0.98); // Friction
-        this.life--;
+        // Fixed-timestep game loop; keep particle update allocation-free.
+        void dt;
+        this.position.x += this.velocity.x;
+        this.position.y += this.velocity.y;
+        this.velocity.x *= 0.98; // friction
+        this.velocity.y *= 0.98;
+        this.life -= 1;
 
         if (this.life <= 0) {
             this.isAlive = false;
@@ -65,6 +80,14 @@ export class ParticleSystem {
     private enabled: boolean = true;
     private intensity: number = 1;
 
+    public getCount(): number {
+        return this.particles.length;
+    }
+
+    public getPoolCount(): number {
+        return this.pool.length;
+    }
+
     public setEnabled(enabled: boolean): void {
         this.enabled = enabled;
         if (!enabled) {
@@ -93,14 +116,16 @@ export class ParticleSystem {
 
         for (let i = 0; i < finalCount; i++) {
             const angle = Random.float(0, Math.PI * 2);
-            const velocity = new Vector2(
-                Math.cos(angle) * Random.float(0.5, 1) * speed,
-                Math.sin(angle) * Random.float(0.5, 1) * speed
-            );
+            const velScale = Random.float(0.5, 1) * speed;
+            const vx = Math.cos(angle) * velScale;
+            const vy = Math.sin(angle) * velScale;
 
-            const particle = new Particle(
-                position,
-                velocity,
+            const particle = this.pool.pop() ?? new Particle();
+            particle.reset(
+                position.x,
+                position.y,
+                vx,
+                vy,
                 color,
                 Random.float(radius * 0.5, radius),
                 Random.int(life * 0.7, life)
@@ -137,13 +162,18 @@ export class ParticleSystem {
      */
     public update(dt: number): void {
         if (!this.enabled) return;
-        for (let i = this.particles.length - 1; i >= 0; i--) {
-            this.particles[i].update(dt);
-
-            if (!this.particles[i].isAlive) {
-                this.particles.splice(i, 1);
+        let write = 0;
+        const parts = this.particles;
+        for (let read = 0; read < parts.length; read++) {
+            const p = parts[read];
+            p.update(dt);
+            if (p.isAlive) {
+                parts[write++] = p;
+            } else {
+                this.pool.push(p);
             }
         }
+        parts.length = write;
     }
 
     /**
@@ -160,6 +190,7 @@ export class ParticleSystem {
      * Clear all particles
      */
     public clear(): void {
-        this.particles = [];
+        for (const p of this.particles) this.pool.push(p);
+        this.particles.length = 0;
     }
 }

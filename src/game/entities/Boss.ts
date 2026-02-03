@@ -33,7 +33,11 @@ export class Boss {
 
     // Body (snake-like)
     public segments: SnakeSegment[] = [];
-    private positionHistory: Vector2[] = [];
+    private historyX: Float32Array = new Float32Array(0);
+    private historyY: Float32Array = new Float32Array(0);
+    private historyHead: number = 0;
+    private historySize: number = 0;
+    private historyCapacity: number = 0;
     private snakeTargetId: string | null = null;
     private snakeRetargetMs: number = 0;
     private foodTargetId: string | null = null;
@@ -102,25 +106,27 @@ export class Boss {
             }
         }
 
-        // Move head
-        this.velocity = this.direction.multiply(this.speed * dtSec);
-        this.position = this.position.add(this.velocity);
+        // Move head (in-place)
+        const move = this.speed * dtSec;
+        this.velocity.set(this.direction.x * move, this.direction.y * move);
+        this.position.x += this.velocity.x;
+        this.position.y += this.velocity.y;
 
         // Keep within world bounds
         this.position.x = Math.max(this.headRadius, Math.min(Config.WORLD_WIDTH - this.headRadius, this.position.x));
         this.position.y = Math.max(this.headRadius, Math.min(Config.WORLD_HEIGHT - this.headRadius, this.position.y));
 
-        // Update body follow
-        this.positionHistory.unshift(this.position.clone());
+        // Update body follow (ring buffer, no allocations)
+        this.pushHistory(this.position.x, this.position.y);
 
         for (let i = 0; i < this.segments.length; i++) {
-            const historyIndex = Math.min(i * 3 + 2, this.positionHistory.length - 1);
-            this.segments[i].position = this.positionHistory[historyIndex];
-        }
-
-        const maxHistory = this.segments.length * 3 + 10;
-        if (this.positionHistory.length > maxHistory) {
-            this.positionHistory.length = maxHistory;
+            const historyOffset = i * 3 + 2;
+            const idx = this.getHistoryIndex(historyOffset);
+            if (idx >= 0) {
+                this.segments[i].position.set(this.historyX[idx], this.historyY[idx]);
+            } else {
+                this.segments[i].position.set(this.position.x, this.position.y);
+            }
         }
     }
 
@@ -211,7 +217,6 @@ export class Boss {
 
     private initializeBody(): void {
         this.segments = [];
-        this.positionHistory = [];
 
         const length = this.kind === 'NONO' ? Config.BOSS_NONO_LENGTH : Config.BOSS_FATE_LENGTH;
         const spacing = this.kind === 'NONO' ? Config.BOSS_NONO_SEGMENT_SPACING : Config.BOSS_FATE_SEGMENT_SPACING;
@@ -226,11 +231,50 @@ export class Boss {
             const radius = (i === 0 ? this.headRadius : this.segmentRadius) * taper;
 
             this.segments.push({ position: segPos, radius });
+        }
 
+        this.rebuildHistoryFromSegments();
+    }
+
+    private getDesiredHistoryCapacity(): number {
+        return Math.max(64, this.segments.length * 3 + 10);
+    }
+
+    private rebuildHistoryFromSegments(): void {
+        const desired = this.getDesiredHistoryCapacity();
+        this.historyX = new Float32Array(desired);
+        this.historyY = new Float32Array(desired);
+        this.historyCapacity = desired;
+        this.historySize = 0;
+        this.historyHead = 0;
+
+        for (let i = this.segments.length - 1; i >= 0; i--) {
+            const p = this.segments[i].position;
             for (let j = 0; j < 3; j++) {
-                this.positionHistory.push(segPos.clone());
+                this.pushHistory(p.x, p.y);
             }
         }
+    }
+
+    private pushHistory(x: number, y: number): void {
+        if (this.historyCapacity <= 0) return;
+        if (this.historySize === 0) {
+            this.historyHead = 0;
+            this.historySize = 1;
+        } else {
+            this.historyHead = (this.historyHead + 1) % this.historyCapacity;
+            if (this.historySize < this.historyCapacity) this.historySize++;
+        }
+        this.historyX[this.historyHead] = x;
+        this.historyY[this.historyHead] = y;
+    }
+
+    private getHistoryIndex(offset: number): number {
+        if (this.historySize <= 0) return -1;
+        const o = Math.max(0, Math.min(this.historySize - 1, Math.floor(Number.isFinite(offset) ? offset : 0)));
+        let idx = this.historyHead - o;
+        if (idx < 0) idx += this.historyCapacity;
+        return idx;
     }
 
     private getNearestSnake(snakes: Snake[]): Snake | null {

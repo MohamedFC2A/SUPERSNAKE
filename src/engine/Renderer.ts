@@ -30,6 +30,9 @@ export class Renderer {
         label: 'rgba(255, 255, 255, 0.85)',
         scheme: 'dark',
     };
+    private backgroundCacheKey: string | null = null;
+    private bgGradient: CanvasGradient | null = null;
+    private vignetteGradient: CanvasGradient | null = null;
 
     public camera: Camera = {
         position: new Vector2(Config.WORLD_WIDTH / 2, Config.WORLD_HEIGHT / 2),
@@ -68,6 +71,36 @@ export class Renderer {
             boundary: pick('--game-boundary', 'rgba(255, 255, 255, 0.18)'),
             label: pick('--game-label', theme === 'light' ? 'rgba(11, 18, 32, 0.75)' : 'rgba(255, 255, 255, 0.85)'),
         };
+
+        // Theme changed: rebuild cached background gradients on next clear().
+        this.backgroundCacheKey = null;
+    }
+
+    private ensureBackgroundCache(): void {
+        const key = `${this.lastThemeKey || ''}|${this.width}x${this.height}`;
+        if (key === this.backgroundCacheKey && this.bgGradient && this.vignetteGradient) return;
+        this.backgroundCacheKey = key;
+
+        // Background gradient (Ice theme in light mode)
+        const bg = this.ctx.createLinearGradient(0, 0, 0, this.height);
+        bg.addColorStop(0, this.themeColors.bgA);
+        bg.addColorStop(1, this.themeColors.bgB);
+        this.bgGradient = bg;
+
+        // Subtle vignette (keeps edges readable, especially on light backgrounds).
+        const outer = Math.max(this.width, this.height) * 0.78;
+        const inner = Math.min(this.width, this.height) * 0.22;
+        const vignette = this.ctx.createRadialGradient(
+            this.width / 2,
+            this.height / 2,
+            inner,
+            this.width / 2,
+            this.height / 2,
+            outer
+        );
+        vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
+        vignette.addColorStop(1, this.themeColors.scheme === 'light' ? 'rgba(2, 6, 23, 0.08)' : 'rgba(0, 0, 0, 0.20)');
+        this.vignetteGradient = vignette;
     }
 
     public getLabelColor(): string {
@@ -99,6 +132,9 @@ export class Renderer {
 
         // Map logical pixels -> backing pixels.
         this.ctx.setTransform(this.pixelRatio, 0, 0, this.pixelRatio, 0, 0);
+
+        // Size changed: rebuild cached background gradients on next clear().
+        this.backgroundCacheKey = null;
     }
 
     public get width(): number {
@@ -107,6 +143,10 @@ export class Renderer {
 
     public get height(): number {
         return this.logicalHeight;
+    }
+
+    public getPixelRatio(): number {
+        return this.pixelRatio;
     }
 
     public get screenCenter(): Vector2 {
@@ -118,28 +158,12 @@ export class Renderer {
      */
     public clear(): void {
         this.refreshThemeCacheIfNeeded();
+        this.ensureBackgroundCache();
 
-        // Background gradient (Ice theme in light mode)
-        const bg = this.ctx.createLinearGradient(0, 0, 0, this.height);
-        bg.addColorStop(0, this.themeColors.bgA);
-        bg.addColorStop(1, this.themeColors.bgB);
-        this.ctx.fillStyle = bg;
+        this.ctx.fillStyle = this.bgGradient!;
         this.ctx.fillRect(0, 0, this.width, this.height);
 
-        // Subtle vignette (keeps edges readable, especially on light backgrounds).
-        const outer = Math.max(this.width, this.height) * 0.78;
-        const inner = Math.min(this.width, this.height) * 0.22;
-        const vignette = this.ctx.createRadialGradient(
-            this.width / 2,
-            this.height / 2,
-            inner,
-            this.width / 2,
-            this.height / 2,
-            outer
-        );
-        vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
-        vignette.addColorStop(1, this.themeColors.scheme === 'light' ? 'rgba(2, 6, 23, 0.08)' : 'rgba(0, 0, 0, 0.20)');
-        this.ctx.fillStyle = vignette;
+        this.ctx.fillStyle = this.vignetteGradient!;
         this.ctx.fillRect(0, 0, this.width, this.height);
     }
 

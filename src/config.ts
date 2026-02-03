@@ -16,6 +16,9 @@ export const Config = {
     SNAKE_SEGMENT_SPACING: 8,
     // Speeds are now in pixels/second (assuming 60fps previously: 3 * 60 = 180)
     SNAKE_BASE_SPEED: 180,
+    // Clamp the "normal" movement speed so the snake stays moderate across sizes.
+    SNAKE_MIN_MOVE_SPEED: 140,
+    SNAKE_MAX_MOVE_SPEED: 180,
     SNAKE_BOOST_SPEED: 300,
     // Turn rate in radians/second (0.15 * 60 = 9)
     SNAKE_MAX_TURN_RATE: 9,

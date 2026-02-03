@@ -12,6 +12,7 @@ import { Boss, type BossKind } from './entities/Boss';
 import { getAudioManager, getMusicManager } from '../audio';
 import type { GameSettings } from './SettingsManager';
 import type { GraphicsQuality, RenderOptions } from './render/RenderOptions';
+import { PerformanceGovernor } from './PerformanceGovernor';
 
 const BOT_NAMES = [
     'Viper', 'Cobra', 'Python', 'Mamba', 'Anaconda',
@@ -43,6 +44,10 @@ export class Game {
     private nonoSpawned: boolean = false;
     private bossVfxMs: number = 0;
 
+    // Reusable scratch arrays (avoid per-frame allocations)
+    private aiNearbySnakes: Snake[] = [];
+    private aiNearbyFoods: Food[] = [];
+
     // Player info
     private playerName: string = 'Player';
     private highScore: number = 0;
@@ -56,6 +61,10 @@ export class Game {
     private particlesEnabled: boolean = true;
     private uiTheme: 'dark' | 'light' = 'dark';
     private botTargetCount: number = Config.BOT_COUNT;
+    private readonly isTouchDevice: boolean;
+    private perfGovernor: PerformanceGovernor;
+    private perfLastEvalMs: number = 0;
+    private recommendedUiUpdateIntervalMs: number = 0;
 
     constructor(canvas: HTMLCanvasElement) {
         this.canvas = canvas;
@@ -68,6 +77,18 @@ export class Game {
         this.particles = new ParticleSystem();
         this.collisionSystem = new CollisionSystem();
         this.aiSystem = new AISystem();
+        this.isTouchDevice = (() => {
+            try {
+                return (
+                    (typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches) ||
+                    'ontouchstart' in window ||
+                    navigator.maxTouchPoints > 0
+                );
+            } catch {
+                return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+            }
+        })();
+        this.perfGovernor = new PerformanceGovernor(this.isTouchDevice);
 
         this.setupGameLoop();
     }
@@ -137,18 +158,17 @@ export class Game {
         }
 
         // Always bias performance on touch devices: cap DPR harder.
-        const isTouch = (() => {
-            try {
-                return (typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches) ||
-                    'ontouchstart' in window ||
-                    navigator.maxTouchPoints > 0;
-            } catch {
-                return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-            }
-        })();
-        if (isTouch) {
+        if (this.isTouchDevice) {
             desiredPixelRatio = Math.min(desiredPixelRatio, this.graphicsQuality === 'ultra' || this.graphicsQuality === 'super_ultra' ? 2 : 1.5);
         }
+
+        // Auto performance governor: base values are the ceiling, then the governor may reduce them at runtime.
+        this.perfGovernor.setBase({
+            pixelRatio: desiredPixelRatio,
+            particleIntensity,
+            botCount,
+            foodCount,
+        });
 
         this.renderer.setPixelRatio(desiredPixelRatio);
         this.renderer.resize({ logicalWidth: window.innerWidth, logicalHeight: window.innerHeight });
@@ -165,6 +185,10 @@ export class Game {
         // Minimap is controlled by SettingsManager too, but we enforce for perf.
         document.documentElement.classList.toggle('hide-minimap', !minimapVisible);
         this.syncBotsToTarget();
+
+        // Reset governor recommendation on settings changes; it will re-evaluate on the next tick.
+        this.perfLastEvalMs = 0;
+        this.recommendedUiUpdateIntervalMs = 0;
     }
 
     private syncBotsToTarget(): void {
@@ -351,7 +375,11 @@ export class Game {
 
         for (const bot of this.bots) {
             if (bot.isAlive) {
-                this.aiSystem.update(bot, allSnakes, foods, dt);
+                // Use previous frame's collision grid for "nearby" lookups (good enough for intent),
+                // then rebuild the grid later for exact collisions.
+                this.collisionSystem.getNearbySnakesInto(bot.position, 2, this.aiNearbySnakes);
+                this.collisionSystem.getNearbyFoodsInto(bot.position, 2, this.aiNearbyFoods);
+                this.aiSystem.update(bot, this.aiNearbySnakes, this.aiNearbyFoods, dt);
                 bot.update(dt);
 
                 if (this.particlesEnabled && bot.isBoosting) {
@@ -412,6 +440,34 @@ export class Game {
 
         // Update camera
         this.renderer.followTarget(this.player.position, this.player.segments.length);
+
+        // Auto performance tuning (once per second).
+        this.tickPerformanceGovernor();
+    }
+
+    private tickPerformanceGovernor(): void {
+        if (!this.isTouchDevice) return;
+        const now = performance.now();
+        if (this.perfLastEvalMs > 0 && now - this.perfLastEvalMs < 1000) return;
+        this.perfLastEvalMs = now;
+
+        const decision = this.perfGovernor.decide(this.gameLoop.getMetrics());
+        if (!decision) return;
+
+        this.recommendedUiUpdateIntervalMs = decision.recommendedUiIntervalMs;
+
+        // Apply runtime reductions (never exceed base values).
+        this.renderer.setPixelRatio(decision.pixelRatio);
+        this.particles.setIntensity(decision.particleIntensity);
+
+        const nextFood = Math.max(180, Math.min(1200, Math.floor(decision.foodCount)));
+        this.foodManager.setTargetCount(nextFood);
+
+        const nextBots = Math.max(6, Math.min(30, Math.floor(decision.botCount)));
+        if (nextBots !== this.botTargetCount) {
+            this.botTargetCount = nextBots;
+            this.syncBotsToTarget();
+        }
     }
 
     private checkCollisions(allSnakes: Snake[]): void {
@@ -798,5 +854,32 @@ export class Game {
 
     public getBossTimeRemaining(): number {
         return this.boss ? this.boss.lifetime : 0;
+    }
+
+    public getRecommendedUiUpdateIntervalMs(): number {
+        return this.recommendedUiUpdateIntervalMs;
+    }
+
+    public getPerfStats(): {
+        fps: number;
+        updateMs: number;
+        renderMs: number;
+        droppedSteps: number;
+        bots: number;
+        foods: number;
+        particles: number;
+        pixelRatio: number;
+    } {
+        const m = this.gameLoop.getMetrics();
+        return {
+            fps: m.fps,
+            updateMs: m.updateMs,
+            renderMs: m.renderMs,
+            droppedSteps: m.droppedSteps,
+            bots: this.bots.length,
+            foods: this.foodManager.getCount(),
+            particles: this.particles.getCount(),
+            pixelRatio: this.renderer.getPixelRatio(),
+        };
     }
 }

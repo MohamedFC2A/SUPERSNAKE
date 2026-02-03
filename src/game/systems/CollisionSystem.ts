@@ -12,33 +12,62 @@ interface GridCell {
  * CollisionSystem - Spatial partitioning for efficient collision detection
  */
 export class CollisionSystem {
-    private grid: Map<string, GridCell> = new Map();
-    private cellSize: number = Config.GRID_CELL_SIZE;
+    private readonly cellSize: number = Config.GRID_CELL_SIZE;
+    private readonly gridW: number;
+    private readonly gridH: number;
+    private readonly cells: GridCell[];
+    private readonly cellStamp: Uint32Array;
+    private frameStamp: number = 1;
+    private activeCells: number[] = [];
 
-    /**
-     * Get cell key from position
-     */
-    private getCellKey(x: number, y: number): string {
-        const cellX = Math.floor(x / this.cellSize);
-        const cellY = Math.floor(y / this.cellSize);
-        return `${cellX},${cellY}`;
+    // Dedupe for getNearbySnakes without allocating Sets.
+    private snakeStampCounter: number = 1;
+
+    constructor() {
+        this.gridW = Math.max(1, Math.ceil(Config.WORLD_WIDTH / this.cellSize));
+        this.gridH = Math.max(1, Math.ceil(Config.WORLD_HEIGHT / this.cellSize));
+        const count = this.gridW * this.gridH;
+        this.cells = Array.from({ length: count }, () => ({ snakes: [], foods: [] }));
+        this.cellStamp = new Uint32Array(count);
     }
 
-    /**
-     * Get or create a cell
-     */
-    private getCell(key: string): GridCell {
-        if (!this.grid.has(key)) {
-            this.grid.set(key, { snakes: [], foods: [] });
+    private clampCellX(cx: number): number {
+        return Math.max(0, Math.min(this.gridW - 1, cx));
+    }
+
+    private clampCellY(cy: number): number {
+        return Math.max(0, Math.min(this.gridH - 1, cy));
+    }
+
+    private getCellIndex(x: number, y: number): number {
+        const cellX = this.clampCellX(Math.floor(x / this.cellSize));
+        const cellY = this.clampCellY(Math.floor(y / this.cellSize));
+        return cellY * this.gridW + cellX;
+    }
+
+    private touchCell(index: number): GridCell {
+        if (this.cellStamp[index] !== this.frameStamp) {
+            this.cellStamp[index] = this.frameStamp;
+            const c = this.cells[index];
+            c.snakes.length = 0;
+            c.foods.length = 0;
+            this.activeCells.push(index);
         }
-        return this.grid.get(key)!;
+        return this.cells[index];
     }
 
     /**
      * Clear the grid
      */
     public clear(): void {
-        this.grid.clear();
+        // Bump stamp so cells are lazily cleared on first use this frame.
+        this.frameStamp = (this.frameStamp + 1) >>> 0;
+        if (this.frameStamp === 0) {
+            // Extremely unlikely, but keep correctness.
+            this.frameStamp = 1;
+            this.cellStamp.fill(0);
+        }
+        this.activeCells.length = 0;
     }
 
     /**
@@ -49,17 +78,17 @@ export class CollisionSystem {
         const step = Math.max(1, Math.floor(Number.isFinite(segmentStep) ? segmentStep : 1));
 
         // Register head
-        const headKey = this.getCellKey(snake.position.x, snake.position.y);
-        this.getCell(headKey).snakes.push(snake);
+        const headIdx = this.getCellIndex(snake.position.x, snake.position.y);
+        this.touchCell(headIdx).snakes.push(snake);
 
-        // Register body segments in relevant cells
-        const registeredCells = new Set<string>([headKey]);
+        // Register body segments in relevant cells (cheap dedupe: adjacent segments usually share cells)
+        let lastIdx = headIdx;
         for (let i = 0; i < snake.segments.length; i += step) {
             const segment = snake.segments[i];
-            const key = this.getCellKey(segment.position.x, segment.position.y);
-            if (!registeredCells.has(key)) {
-                this.getCell(key).snakes.push(snake);
-                registeredCells.add(key);
+            const idx = this.getCellIndex(segment.position.x, segment.position.y);
+            if (idx !== lastIdx) {
+                this.touchCell(idx).snakes.push(snake);
+                lastIdx = idx;
             }
         }
     }
@@ -70,52 +99,78 @@ export class CollisionSystem {
     public registerFood(food: Food): void {
         if (food.isConsumed) return;
 
-        const key = this.getCellKey(food.position.x, food.position.y);
-        this.getCell(key).foods.push(food);
+        const idx = this.getCellIndex(food.position.x, food.position.y);
+        this.touchCell(idx).foods.push(food);
     }
 
     /**
      * Get nearby snakes from adjacent cells
      */
     public getNearbySnakes(position: Vector2): Snake[] {
-        const snakes: Set<Snake> = new Set();
-        const cellX = Math.floor(position.x / this.cellSize);
-        const cellY = Math.floor(position.y / this.cellSize);
+        return this.getNearbySnakesRadius(position, 1);
+    }
 
-        // Check 3x3 grid of cells
-        for (let dx = -1; dx <= 1; dx++) {
-            for (let dy = -1; dy <= 1; dy++) {
-                const key = `${cellX + dx},${cellY + dy}`;
-                const cell = this.grid.get(key);
-                if (cell) {
-                    cell.snakes.forEach(snake => snakes.add(snake));
+    public getNearbySnakesRadius(position: Vector2, radiusCells: number): Snake[] {
+        const out: Snake[] = [];
+        this.getNearbySnakesInto(position, radiusCells, out);
+        return out;
+    }
+
+    public getNearbySnakesInto(position: Vector2, radiusCells: number, out: Snake[]): void {
+        out.length = 0;
+        const r = Math.max(1, Math.floor(Number.isFinite(radiusCells) ? radiusCells : 1));
+        const cellX = this.clampCellX(Math.floor(position.x / this.cellSize));
+        const cellY = this.clampCellY(Math.floor(position.y / this.cellSize));
+
+        let stamp = (this.snakeStampCounter + 1) >>> 0;
+        if (stamp === 0) stamp = 1;
+        this.snakeStampCounter = stamp;
+
+        for (let dx = -r; dx <= r; dx++) {
+            const cx = this.clampCellX(cellX + dx);
+            for (let dy = -r; dy <= r; dy++) {
+                const cy = this.clampCellY(cellY + dy);
+                const idx = cy * this.gridW + cx;
+                if (this.cellStamp[idx] !== this.frameStamp) continue;
+                const cell = this.cells[idx];
+                for (const s of cell.snakes) {
+                    if (s._nearbyStamp === stamp) continue;
+                    s._nearbyStamp = stamp;
+                    out.push(s);
                 }
             }
         }
-
-        return Array.from(snakes);
     }
 
     /**
      * Get nearby foods from adjacent cells
      */
     public getNearbyFoods(position: Vector2): Food[] {
-        const foods: Food[] = [];
-        const cellX = Math.floor(position.x / this.cellSize);
-        const cellY = Math.floor(position.y / this.cellSize);
+        return this.getNearbyFoodsRadius(position, 1);
+    }
 
-        // Check 3x3 grid of cells
-        for (let dx = -1; dx <= 1; dx++) {
-            for (let dy = -1; dy <= 1; dy++) {
-                const key = `${cellX + dx},${cellY + dy}`;
-                const cell = this.grid.get(key);
-                if (cell) {
-                    foods.push(...cell.foods);
-                }
+    public getNearbyFoodsRadius(position: Vector2, radiusCells: number): Food[] {
+        const foods: Food[] = [];
+        this.getNearbyFoodsInto(position, radiusCells, foods);
+        return foods;
+    }
+
+    public getNearbyFoodsInto(position: Vector2, radiusCells: number, out: Food[]): void {
+        out.length = 0;
+        const r = Math.max(1, Math.floor(Number.isFinite(radiusCells) ? radiusCells : 1));
+        const cellX = this.clampCellX(Math.floor(position.x / this.cellSize));
+        const cellY = this.clampCellY(Math.floor(position.y / this.cellSize));
+
+        for (let dx = -r; dx <= r; dx++) {
+            const cx = this.clampCellX(cellX + dx);
+            for (let dy = -r; dy <= r; dy++) {
+                const cy = this.clampCellY(cellY + dy);
+                const idx = cy * this.gridW + cx;
+                if (this.cellStamp[idx] !== this.frameStamp) continue;
+                const cell = this.cells[idx];
+                for (const f of cell.foods) out.push(f);
             }
         }
-
-        return foods;
     }
 
     /**
@@ -125,16 +180,16 @@ export class CollisionSystem {
     public getFoodsInAABB(minX: number, minY: number, maxX: number, maxY: number): Food[] {
         const foods: Food[] = [];
 
-        const cellMinX = Math.floor(minX / this.cellSize);
-        const cellMaxX = Math.floor(maxX / this.cellSize);
-        const cellMinY = Math.floor(minY / this.cellSize);
-        const cellMaxY = Math.floor(maxY / this.cellSize);
+        const cellMinX = this.clampCellX(Math.floor(minX / this.cellSize));
+        const cellMaxX = this.clampCellX(Math.floor(maxX / this.cellSize));
+        const cellMinY = this.clampCellY(Math.floor(minY / this.cellSize));
+        const cellMaxY = this.clampCellY(Math.floor(maxY / this.cellSize));
 
         for (let cx = cellMinX; cx <= cellMaxX; cx++) {
             for (let cy = cellMinY; cy <= cellMaxY; cy++) {
-                const key = `${cx},${cy}`;
-                const cell = this.grid.get(key);
-                if (!cell) continue;
+                const idx = cy * this.gridW + cx;
+                if (this.cellStamp[idx] !== this.frameStamp) continue;
+                const cell = this.cells[idx];
                 for (const f of cell.foods) {
                     if (!f.isConsumed) foods.push(f);
                 }

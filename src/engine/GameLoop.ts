@@ -28,6 +28,8 @@ export class GameLoop {
     public currentFPS: number = 0;
     public lastUpdateTime: number = 0;
     public lastRenderTime: number = 0;
+    private droppedStepsThisSecond: number = 0;
+    public droppedStepsLastSecond: number = 0;
 
     public onUpdate(callback: (dt: number) => void): void {
         this.updateCallback = callback;
@@ -62,6 +64,15 @@ export class GameLoop {
         }
     }
 
+    public getMetrics(): { fps: number; updateMs: number; renderMs: number; droppedSteps: number } {
+        return {
+            fps: this.currentFPS,
+            updateMs: this.lastUpdateTime,
+            renderMs: this.lastRenderTime,
+            droppedSteps: this.droppedStepsLastSecond,
+        };
+    }
+
     private loop(timestamp: number): void {
         if (!this.isRunning) return;
 
@@ -80,6 +91,7 @@ export class GameLoop {
         while (this.accumulatedTime >= this.FIXED_TIMESTEP) {
             if (updates >= this.MAX_UPDATES_PER_FRAME) {
                 // Drop the rest. Prevents "catch-up" spirals that feel like the game froze on mobile.
+                this.droppedStepsThisSecond += Math.max(1, Math.floor(this.accumulatedTime / this.FIXED_TIMESTEP));
                 this.accumulatedTime = 0;
                 break;
             }
@@ -107,6 +119,8 @@ export class GameLoop {
             this.currentFPS = this.frameCount;
             this.frameCount = 0;
             this.fpsTime = timestamp;
+            this.droppedStepsLastSecond = this.droppedStepsThisSecond;
+            this.droppedStepsThisSecond = 0;
         }
 
         this.animationFrameId = requestAnimationFrame(this.boundLoop);

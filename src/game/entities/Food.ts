@@ -195,6 +195,10 @@ export class FoodManager {
         return this.targetCount;
     }
 
+    public getCount(): number {
+        return this.foods.size;
+    }
+
     private trimToTarget(): void {
         if (this.foods.size <= this.targetCount) return;
 

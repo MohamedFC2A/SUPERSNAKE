@@ -90,11 +90,15 @@ export class PlayPage {
     // UI update throttling for performance presets
     private uiUpdateIntervalMs: number = 0;
     private lastUiUpdateMs: number = 0;
+    private perfOverlayEnabled: boolean = false;
+    private perfOverlay: HTMLElement | null = null;
+    private lastPerfOverlayMs: number = 0;
 
     constructor(settingsManager: SettingsManager) {
         this.settingsManager = settingsManager;
         this.container = document.createElement('div');
         this.container.className = 'play-page';
+        this.perfOverlayEnabled = this.isPerfOverlayEnabled();
         this.showStartScreen();
 
         this.unsubscribeLocale = onLocaleChange(() => {
@@ -112,6 +116,20 @@ export class PlayPage {
 
     private backArrow(): string {
         return isRTL() ? '→' : '←';
+    }
+
+    private isPerfOverlayEnabled(): boolean {
+        try {
+            if (import.meta.env.DEV) return true;
+        } catch {
+            // ignore
+        }
+        try {
+            const qs = new URLSearchParams(window.location.search || '');
+            return qs.has('perf') || qs.get('perf') === '1';
+        } catch {
+            return false;
+        }
     }
 
     private vibrate(pattern: number | number[]): void {
@@ -459,6 +477,26 @@ export class PlayPage {
             <div class="leaderboard-list" id="leaderboardEntries"></div>
         `;
         uiLayer.appendChild(this.leaderboard);
+
+        if (this.perfOverlayEnabled) {
+            this.perfOverlay = document.createElement('div');
+            this.perfOverlay.className = 'perf-overlay';
+            this.perfOverlay.style.position = 'absolute';
+            this.perfOverlay.style.top = '8px';
+            this.perfOverlay.style.right = '8px';
+            this.perfOverlay.style.zIndex = '50';
+            this.perfOverlay.style.pointerEvents = 'none';
+            this.perfOverlay.style.fontFamily = 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
+            this.perfOverlay.style.fontSize = '12px';
+            this.perfOverlay.style.lineHeight = '1.25';
+            this.perfOverlay.style.padding = '8px 10px';
+            this.perfOverlay.style.borderRadius = '10px';
+            this.perfOverlay.style.background = 'rgba(0,0,0,0.55)';
+            this.perfOverlay.style.border = '1px solid rgba(255,255,255,0.14)';
+            this.perfOverlay.style.color = 'rgba(255,255,255,0.92)';
+            this.perfOverlay.textContent = 'perf…';
+            uiLayer.appendChild(this.perfOverlay);
+        }
     }
 
     // Mobile controls are configured dynamically based on settings (joystick vs touch-drag).
@@ -617,7 +655,8 @@ export class PlayPage {
 
                     if (!this.game.paused) {
                         const now = performance.now();
-                        const shouldUpdateUi = this.uiUpdateIntervalMs <= 0 || (now - this.lastUiUpdateMs >= this.uiUpdateIntervalMs);
+                        const perfInterval = Math.max(this.uiUpdateIntervalMs, this.game.getRecommendedUiUpdateIntervalMs());
+                        const shouldUpdateUi = perfInterval <= 0 || (now - this.lastUiUpdateMs >= perfInterval);
                         if (shouldUpdateUi) {
                             this.lastUiUpdateMs = now;
                             this.updateHUD();
@@ -625,8 +664,10 @@ export class PlayPage {
                             this.updateMiniMap();
                         }
                         this.updateBossUI();
+                        this.updatePerfOverlay();
                     } else {
                         this.updateBossUI();
+                        this.updatePerfOverlay();
                     }
                 } else if (this.game.state === 'gameover') {
                     this.handleGameOver();
@@ -839,6 +880,25 @@ export class PlayPage {
         });
 
         this.boostButton?.updateCharge(player.boostEnergy);
+    }
+
+    private updatePerfOverlay(): void {
+        if (!this.perfOverlayEnabled) return;
+        if (!this.perfOverlay) return;
+        if (!this.game) return;
+
+        const now = performance.now();
+        if (now - this.lastPerfOverlayMs < 250) return;
+        this.lastPerfOverlayMs = now;
+
+        const stats = this.game.getPerfStats();
+        const player = this.game.getPlayer();
+        const segments = player ? player.segments.length : 0;
+
+        this.perfOverlay.textContent =
+            `FPS ${stats.fps} | upd ${stats.updateMs.toFixed(1)}ms | rnd ${stats.renderMs.toFixed(1)}ms\n` +
+            `drop ${stats.droppedSteps}/s | bots ${stats.bots} | food ${stats.foods} | parts ${stats.particles}\n` +
+            `dpr ${stats.pixelRatio.toFixed(2)} | seg ${segments}`;
     }
 
     private updateBossUI(): void {
@@ -1092,6 +1152,7 @@ export class PlayPage {
         // Clear game reference
         this.game = null;
         this.isGameRunning = false;
+        this.perfOverlay = null;
 
         // Ensure music stops when leaving gameplay (so it doesn't leak into other pages).
         getMusicManager().stop();

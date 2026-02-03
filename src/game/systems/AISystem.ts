@@ -44,8 +44,8 @@ export class AISystem {
      */
     public update(
         bot: Snake,
-        allSnakes: Snake[],
-        foods: Food[],
+        nearbySnakes: Snake[],
+        nearbyFoods: Food[],
         dt: number
     ): void {
         if (!bot.isAlive) return;
@@ -62,7 +62,7 @@ export class AISystem {
         // Evaluate situation and potentially change state
         const decisionIntervalMs = this.getDecisionIntervalMs(level);
         if (brain.timeSinceDecisionMs >= decisionIntervalMs) {
-            this.evaluateState(bot, brain, allSnakes, foods, level);
+            this.evaluateState(bot, brain, nearbySnakes, nearbyFoods, level);
             brain.timeSinceDecisionMs = 0;
         }
 
@@ -72,20 +72,20 @@ export class AISystem {
                 this.wanderBehavior(bot, brain, level);
                 break;
             case 'hunt':
-                this.huntBehavior(bot, brain, allSnakes, level);
+                this.huntBehavior(bot, brain, nearbySnakes, level);
                 break;
             case 'flee':
-                this.fleeBehavior(bot, brain, allSnakes, level);
+                this.fleeBehavior(bot, brain, nearbySnakes, level);
                 break;
             case 'eat':
-                this.eatBehavior(bot, brain, foods, level);
+                this.eatBehavior(bot, brain, nearbyFoods, level);
                 break;
         }
 
         // Smarter collision avoidance (especially at higher levels)
         if (level >= 2) {
             const smartLevel = level as 2 | 3;
-            this.applyAdvancedSteering(bot, allSnakes, smartLevel);
+            this.applyAdvancedSteering(bot, nearbySnakes, smartLevel);
         }
 
         // Avoid boundaries
@@ -94,8 +94,8 @@ export class AISystem {
         // If still unsafe, try a few candidate directions (failsafe)
         if (level >= 2) {
             const smartLevel = level as 2 | 3;
-            if (!this.isPathSafe(bot, bot.targetDirection, this.getNearbyForPlanning(bot, allSnakes, smartLevel), smartLevel)) {
-                const safer = this.chooseBestDirection(bot, bot.targetDirection, this.getNearbyForPlanning(bot, allSnakes, smartLevel), smartLevel);
+            if (!this.isPathSafe(bot, bot.targetDirection, this.getNearbyForPlanning(bot, nearbySnakes, smartLevel), smartLevel)) {
+                const safer = this.chooseBestDirection(bot, bot.targetDirection, this.getNearbyForPlanning(bot, nearbySnakes, smartLevel), smartLevel);
                 if (safer.magnitude() > 0) bot.setDirection(safer);
             }
         }
