@@ -412,12 +412,15 @@ export class SettingsPage {
         this.container.querySelectorAll('input[type="range"]').forEach(slider => {
             slider.addEventListener('input', (e) => {
                 const target = e.target as HTMLInputElement;
+                const raw = Number(target.value);
+                if (!Number.isFinite(raw)) return;
+                const nextValue = Math.round(raw);
                 const valueDisplay = target.parentElement?.querySelector('.slider-value');
                 if (valueDisplay) {
                     const suffix = target.id === 'sensitivity' ? '' : (target.id.includes('Volume') || target.id === 'fontScale' ? '%' : 'px');
-                    valueDisplay.textContent = target.value + suffix;
+                    valueDisplay.textContent = `${nextValue}${suffix}`;
                 }
-                this.handleSettingChange(target.id, parseInt(target.value));
+                this.handleSettingChange(target.id, nextValue);
             });
         });
 

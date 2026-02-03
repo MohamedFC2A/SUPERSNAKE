@@ -81,6 +81,16 @@ export class MusicManager {
         });
     }
 
+    private clampUnit(value: number): number {
+        if (!Number.isFinite(value)) return 0;
+        return Math.max(0, Math.min(1, value));
+    }
+
+    private clampPercentToUnit(value: number): number {
+        if (!Number.isFinite(value)) return 0;
+        return this.clampUnit(value / 100);
+    }
+
     // ===== Public API =====
 
     /**
@@ -130,7 +140,7 @@ export class MusicManager {
      */
     setMovementIntensity(intensity: number): void {
         const now = performance.now();
-        const clampedIntensity = Math.max(0, Math.min(1, intensity));
+        const clampedIntensity = Number.isFinite(intensity) ? Math.max(0, Math.min(1, intensity)) : 0;
 
         // Track activity state for hysteresis
         if (clampedIntensity > 0.05) {
@@ -177,7 +187,7 @@ export class MusicManager {
      * Set the master volume multiplier (from settings, 0-100)
      */
     setMasterVolume(volume: number): void {
-        this.masterVolume = Math.max(0, Math.min(1, volume / 100));
+        this.masterVolume = this.clampPercentToUnit(volume);
         this.applyVolume();
     }
 
@@ -185,7 +195,7 @@ export class MusicManager {
      * Set the music-specific volume (from settings, 0-100)
      */
     setMusicVolume(volume: number): void {
-        this.musicVolume = Math.max(0, Math.min(1, volume / 100));
+        this.musicVolume = this.clampPercentToUnit(volume);
         this.applyVolume();
     }
 
@@ -193,7 +203,8 @@ export class MusicManager {
      * Update max volume ceiling (for dynamic difficulty or user preference)
      */
     setMaxVolume(max: number): void {
-        this.config.maxVolume = Math.max(0, Math.min(1, max));
+        if (!Number.isFinite(max)) return;
+        this.config.maxVolume = this.clampUnit(max);
     }
 
     // ===== Internal Methods =====
@@ -265,7 +276,8 @@ export class MusicManager {
 
         // Combine all volume factors
         const finalVolume = this.currentVolume * this.masterVolume * this.musicVolume;
-        this.audio.volume = Math.max(0, Math.min(1, finalVolume));
+        const safeVolume = Number.isFinite(finalVolume) ? finalVolume : 0;
+        this.audio.volume = this.clampUnit(safeVolume);
     }
 }
 

@@ -176,12 +176,41 @@ export class SettingsManager {
         if (!value || typeof value !== 'object') return {};
         const v = value as any;
 
+        const normalized: DeepPartial<GameSettings> = {};
+
         const theme: Theme | undefined = v?.ui?.theme === 'light' ? 'light' : v?.ui?.theme === 'dark' ? 'dark' : undefined;
+        if (theme) normalized.ui = { theme };
+
+        const graphics: DeepPartial<GameSettings['graphics']> = {};
         const quality =
             v?.graphics?.quality === 'low' || v?.graphics?.quality === 'medium' || v?.graphics?.quality === 'high' || v?.graphics?.quality === 'ultra'
                 ? v.graphics.quality
                 : undefined;
-        const language = v?.accessibility?.language === 'ar' || v?.accessibility?.language === 'en' ? v.accessibility.language : undefined;
+        if (quality) graphics.quality = quality;
+        if (typeof v?.graphics?.particles === 'boolean') graphics.particles = v.graphics.particles;
+        if (typeof v?.graphics?.showGrid === 'boolean') graphics.showGrid = v.graphics.showGrid;
+        if (typeof v?.graphics?.showMinimap === 'boolean') graphics.showMinimap = v.graphics.showMinimap;
+        if (Object.keys(graphics).length > 0) normalized.graphics = graphics;
+
+        const audio: DeepPartial<GameSettings['audio']> = {};
+        if (Number.isFinite(v?.audio?.masterVolume)) audio.masterVolume = MathUtils.clamp(Math.round(v.audio.masterVolume), 0, 100);
+        if (typeof v?.audio?.sfxEnabled === 'boolean') audio.sfxEnabled = v.audio.sfxEnabled;
+        if (Number.isFinite(v?.audio?.sfxVolume)) audio.sfxVolume = MathUtils.clamp(Math.round(v.audio.sfxVolume), 0, 100);
+        if (typeof v?.audio?.musicEnabled === 'boolean') audio.musicEnabled = v.audio.musicEnabled;
+        if (Number.isFinite(v?.audio?.musicVolume)) audio.musicVolume = MathUtils.clamp(Math.round(v.audio.musicVolume), 0, 100);
+        if (typeof v?.audio?.vibration === 'boolean') audio.vibration = v.audio.vibration;
+        if (Object.keys(audio).length > 0) normalized.audio = audio;
+
+        const controls: DeepPartial<GameSettings['controls']> = {};
+        if (Number.isFinite(v?.controls?.joystickSize)) controls.joystickSize = MathUtils.clamp(Math.round(v.controls.joystickSize), 80, 180);
+        const joystickPosition = v?.controls?.joystickPosition === 'left' || v?.controls?.joystickPosition === 'right' ? v.controls.joystickPosition : undefined;
+        if (joystickPosition) controls.joystickPosition = joystickPosition;
+        if (Number.isFinite(v?.controls?.sensitivity)) controls.sensitivity = MathUtils.clamp(Math.round(v.controls.sensitivity), 1, 10);
+        const mobileControlMode = v?.controls?.mobileControlMode === 'joystick' || v?.controls?.mobileControlMode === 'touch' ? v.controls.mobileControlMode : undefined;
+        if (mobileControlMode) controls.mobileControlMode = mobileControlMode;
+        if (Object.keys(controls).length > 0) normalized.controls = controls;
+
+        const accessibility: DeepPartial<GameSettings['accessibility']> = {};
         const colorblindMode =
             v?.accessibility?.colorblindMode === 'none' ||
                 v?.accessibility?.colorblindMode === 'deuteranopia' ||
@@ -189,51 +218,15 @@ export class SettingsManager {
                 v?.accessibility?.colorblindMode === 'tritanopia'
                 ? v.accessibility.colorblindMode
                 : undefined;
-        const joystickPosition = v?.controls?.joystickPosition === 'left' || v?.controls?.joystickPosition === 'right' ? v.controls.joystickPosition : undefined;
-        const mobileControlMode = v?.controls?.mobileControlMode === 'joystick' || v?.controls?.mobileControlMode === 'touch' ? v.controls.mobileControlMode : undefined;
+        if (colorblindMode) accessibility.colorblindMode = colorblindMode;
+        if (typeof v?.accessibility?.highContrast === 'boolean') accessibility.highContrast = v.accessibility.highContrast;
+        if (typeof v?.accessibility?.reducedMotion === 'boolean') accessibility.reducedMotion = v.accessibility.reducedMotion;
+        if (Number.isFinite(v?.accessibility?.fontScale)) accessibility.fontScale = MathUtils.clamp(Math.round(v.accessibility.fontScale), 80, 140);
+        const language = v?.accessibility?.language === 'ar' || v?.accessibility?.language === 'en' ? v.accessibility.language : undefined;
+        if (language) accessibility.language = language;
+        if (Object.keys(accessibility).length > 0) normalized.accessibility = accessibility;
 
-        const masterVolume =
-            typeof v?.audio?.masterVolume === 'number' ? MathUtils.clamp(Math.round(v.audio.masterVolume), 0, 100) : undefined;
-        const sfxVolume = typeof v?.audio?.sfxVolume === 'number' ? MathUtils.clamp(Math.round(v.audio.sfxVolume), 0, 100) : undefined;
-        const musicVolume =
-            typeof v?.audio?.musicVolume === 'number' ? MathUtils.clamp(Math.round(v.audio.musicVolume), 0, 100) : undefined;
-        const joystickSize =
-            typeof v?.controls?.joystickSize === 'number' ? MathUtils.clamp(Math.round(v.controls.joystickSize), 80, 180) : undefined;
-        const sensitivity =
-            typeof v?.controls?.sensitivity === 'number' ? MathUtils.clamp(Math.round(v.controls.sensitivity), 1, 10) : undefined;
-        const fontScale =
-            typeof v?.accessibility?.fontScale === 'number' ? MathUtils.clamp(Math.round(v.accessibility.fontScale), 80, 140) : undefined;
-
-        return {
-            ui: theme ? { theme } : undefined,
-            graphics: {
-                quality,
-                particles: typeof v?.graphics?.particles === 'boolean' ? v.graphics.particles : undefined,
-                showGrid: typeof v?.graphics?.showGrid === 'boolean' ? v.graphics.showGrid : undefined,
-                showMinimap: typeof v?.graphics?.showMinimap === 'boolean' ? v.graphics.showMinimap : undefined,
-            },
-            audio: {
-                masterVolume,
-                sfxEnabled: typeof v?.audio?.sfxEnabled === 'boolean' ? v.audio.sfxEnabled : undefined,
-                sfxVolume,
-                musicEnabled: typeof v?.audio?.musicEnabled === 'boolean' ? v.audio.musicEnabled : undefined,
-                musicVolume,
-                vibration: typeof v?.audio?.vibration === 'boolean' ? v.audio.vibration : undefined,
-            },
-            controls: {
-                joystickSize,
-                joystickPosition,
-                sensitivity,
-                mobileControlMode,
-            },
-            accessibility: {
-                colorblindMode,
-                highContrast: typeof v?.accessibility?.highContrast === 'boolean' ? v.accessibility.highContrast : undefined,
-                reducedMotion: typeof v?.accessibility?.reducedMotion === 'boolean' ? v.accessibility.reducedMotion : undefined,
-                fontScale,
-                language,
-            },
-        };
+        return normalized;
     }
 
     private applySettings(): void {
@@ -280,15 +273,16 @@ export class SettingsManager {
     applyRemoteSettings(remote: unknown): void {
         if (!remote || typeof remote !== 'object') return;
         const normalized = this.normalizeSettings(remote);
-        const merged = this.mergeSettings(DEFAULT_SETTINGS, normalized as any);
-        this.settings = merged;
+        this.settings = this.mergeSettings(DEFAULT_SETTINGS, normalized as any);
         this.saveSettings();
         this.applySettings();
         this.notifyListeners();
     }
 
     updateSettings(partial: DeepPartial<GameSettings>): void {
-        this.settings = this.mergeSettings(this.settings, partial);
+        const merged = this.mergeSettings(this.settings, partial);
+        const normalized = this.normalizeSettings(merged);
+        this.settings = this.mergeSettings(DEFAULT_SETTINGS, normalized as any);
         this.saveSettings();
         this.applySettings();
         this.notifyListeners();
