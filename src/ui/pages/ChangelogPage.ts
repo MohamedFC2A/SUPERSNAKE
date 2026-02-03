@@ -1,5 +1,6 @@
 import { t, onLocaleChange } from '../../i18n';
 import { getRouter } from '../../router';
+import { ParticleBackground } from '../components/ParticleBackground';
 import {
     createChangelogEntry,
     deleteChangelogEntry,
@@ -28,6 +29,7 @@ export class ChangelogPage {
     private saving: boolean = false;
     private aiFilling: boolean = false;
     private formError: string | null = null;
+    private particleBg: ParticleBackground | null = null;
 
     constructor() {
         this.container = document.createElement('div');
@@ -91,7 +93,9 @@ export class ChangelogPage {
         const auth = getAuthState();
 
         this.container.innerHTML = `
-            <div class="page-header page-header-split">
+            <div class="particle-container" style="position: absolute; inset: 0; overflow: hidden; pointer-events: none;"></div>
+            
+            <div class="page-header page-header-split" style="position: relative; z-index: 1;">
                 <div class="page-header-left">
                     <h1 class="page-title">${t('changelog.title')}</h1>
                     <p class="page-subtitle">${t('changelog.subtitle')}</p>
@@ -147,6 +151,22 @@ export class ChangelogPage {
         `;
 
         this.attachEventListeners();
+        
+        // Initialize particles if not already present
+        if (!this.particleBg) {
+            this.initParticles();
+        }
+    }
+
+    private initParticles(): void {
+        const particleContainer = this.container.querySelector('.particle-container');
+        if (particleContainer) {
+            this.particleBg = new ParticleBackground(particleContainer as HTMLElement, {
+                particleCount: 35,
+                speed: 0.2,
+                connectParticles: true,
+            });
+        }
     }
 
     private renderLoading(): string {
@@ -510,5 +530,6 @@ export class ChangelogPage {
 
     destroy(): void {
         this.unsubscribeLocale?.();
+        this.particleBg?.destroy();
     }
 }

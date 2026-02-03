@@ -3,9 +3,11 @@ import { SettingsManager, GameSettings } from '../../game/SettingsManager';
 import { setLocale } from '../../i18n';
 import { applyUpdate, checkForUpdate } from '../../update/appUpdate';
 import { purgeCachesAndReload } from '../../update/purgeCaches';
+import { ParticleBackground } from '../components/ParticleBackground';
 
 /**
  * SettingsPage - Full page settings with all options
+ * Enhanced with game-like visuals
  */
 export class SettingsPage {
     private container: HTMLElement;
@@ -19,6 +21,7 @@ export class SettingsPage {
     private updateError: string | null = null;
     private onVisibilityChange: (() => void) | null = null;
     private unsubscribeSettings: (() => void) | null = null;
+    private particleBg: ParticleBackground | null = null;
 
     constructor(settingsManager: SettingsManager) {
         this.settingsManager = settingsManager;
@@ -144,7 +147,9 @@ export class SettingsPage {
         const currentTheme = settings.ui.theme;
 
         this.container.innerHTML = `
-            <div class="page-header page-header-split">
+            <div class="particle-container" style="position: absolute; inset: 0; overflow: hidden; pointer-events: none;"></div>
+            
+            <div class="page-header page-header-split" style="position: relative; z-index: 1;">
                 <div class="page-header-left">
                     <h1 class="page-title">${t('settings.title')}</h1>
                     <p class="page-subtitle">${t('settings.subtitle')}</p>
@@ -214,6 +219,18 @@ export class SettingsPage {
         `;
 
         this.setupEventListeners();
+        this.initParticles();
+    }
+
+    private initParticles(): void {
+        const particleContainer = this.container.querySelector('.particle-container');
+        if (particleContainer) {
+            this.particleBg = new ParticleBackground(particleContainer as HTMLElement, {
+                particleCount: 40,
+                speed: 0.2,
+                connectParticles: true,
+            });
+        }
     }
 
     private renderTabContent(settings: GameSettings): string {
@@ -648,6 +665,7 @@ export class SettingsPage {
         this.unsubscribeLocale?.();
         this.onVisibilityChange?.();
         this.unsubscribeSettings?.();
+        this.particleBg?.destroy();
         if (this.savedHintTimeout) {
             window.clearTimeout(this.savedHintTimeout);
             this.savedHintTimeout = null;

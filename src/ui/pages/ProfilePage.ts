@@ -1,4 +1,5 @@
 import { t, onLocaleChange } from '../../i18n';
+import { ParticleBackground } from '../components/ParticleBackground';
 import {
     fetchMyBestScore,
     fetchMyUserStats,
@@ -32,6 +33,7 @@ export class ProfilePage {
     private cloudLoading: boolean = false;
     private authError: string | null = null;
     private debugExpanded: boolean = false;
+    private particleBg: ParticleBackground | null = null;
 
     constructor() {
         this.container = document.createElement('div');
@@ -86,6 +88,9 @@ export class ProfilePage {
         const user = auth.user;
         const profile = auth.profile;
         const storageOk = isSessionStorageAvailable();
+        
+        // Store particle container reference if it exists
+        const hadParticles = this.container.querySelector('.particle-container');
         const debugSnapshot = getAuthDebugSnapshot();
         const cloudName =
             profile?.username ||
@@ -95,7 +100,9 @@ export class ProfilePage {
             null;
 
         this.container.innerHTML = `
-            <div class="page-header">
+            <div class="particle-container" style="position: absolute; inset: 0; overflow: hidden; pointer-events: none;"></div>
+            
+            <div class="page-header" style="position: relative; z-index: 1;">
                 <h1 class="page-title">${t('profile.title')}</h1>
                 <p class="page-subtitle">${t('profile.subtitle')}</p>
             </div>
@@ -263,6 +270,22 @@ export class ProfilePage {
                 takeAuthError() || t('profile.sessionRefreshAttempted', { time: new Date().toLocaleTimeString() });
             this.updateContent();
         });
+        
+        // Initialize particles if not already present
+        if (!this.particleBg) {
+            this.initParticles();
+        }
+    }
+
+    private initParticles(): void {
+        const particleContainer = this.container.querySelector('.particle-container');
+        if (particleContainer) {
+            this.particleBg = new ParticleBackground(particleContainer as HTMLElement, {
+                particleCount: 35,
+                speed: 0.2,
+                connectParticles: true,
+            });
+        }
     }
 
     private escapeHtml(text: string): string {
@@ -292,5 +315,6 @@ export class ProfilePage {
     destroy(): void {
         this.unsubscribeLocale?.();
         this.unsubscribeAuth?.();
+        this.particleBg?.destroy();
     }
 }
