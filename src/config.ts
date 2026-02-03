@@ -64,15 +64,27 @@ export const Config = {
     },
 
     // Boss
-    BOSS_SCORE_THRESHOLD: 100,
-    BOSS_LIFETIME_SECONDS: 100,
-    BOSS_SAFE_DISTANCE: 1000, // Distance from player when spawning
-    BOSS_HEAD_RADIUS: 70, // much bigger + scarier
-    BOSS_SEGMENT_RADIUS: 54,
-    BOSS_LENGTH: 85, // very long
-    BOSS_SEGMENT_SPACING: 18,
-    BOSS_SPEED: 28, // much slower
-    BOSS_TURN_RATE: 0.75, // slower steering (still smart via prediction)
+    // Boss #1: FATE
+    BOSS_FATE_SCORE_THRESHOLD: 100,
+    BOSS_FATE_LIFETIME_SECONDS: 100,
+    BOSS_FATE_SAFE_DISTANCE: 1000, // Distance from player when spawning
+    BOSS_FATE_HEAD_RADIUS: 70, // much bigger + scarier
+    BOSS_FATE_SEGMENT_RADIUS: 54,
+    BOSS_FATE_LENGTH: 85, // very long
+    BOSS_FATE_SEGMENT_SPACING: 18,
+    BOSS_FATE_SPEED: 34, // slightly faster so it feels active
+    BOSS_FATE_TURN_RATE: 0.75, // slower steering (still smart via prediction)
+
+    // Boss #2: NONO (fast + small + food-eater)
+    BOSS_NONO_SCORE_THRESHOLD: 200,
+    BOSS_NONO_LIFETIME_SECONDS: 70,
+    BOSS_NONO_SAFE_DISTANCE: 720,
+    BOSS_NONO_HEAD_RADIUS: 36,
+    BOSS_NONO_SEGMENT_RADIUS: 26,
+    BOSS_NONO_LENGTH: 48,
+    BOSS_NONO_SEGMENT_SPACING: 14,
+    BOSS_NONO_SPEED: 96,
+    BOSS_NONO_TURN_RATE: 2.2,
 
     // Boss drop (speed boost pickup)
     BOSS_DROP_RADIUS: 12, // small collectible

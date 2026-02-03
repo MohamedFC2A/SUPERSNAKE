@@ -8,7 +8,7 @@ import { Food, FoodManager } from './entities/Food';
 import { ParticleSystem } from './entities/Particle';
 import { CollisionSystem } from './systems/CollisionSystem';
 import { AISystem } from './systems/AISystem';
-import { Boss } from './entities/Boss';
+import { Boss, type BossKind } from './entities/Boss';
 import { getAudioManager, getMusicManager } from '../audio';
 import type { GameSettings } from './SettingsManager';
 import type { GraphicsQuality, RenderOptions } from './render/RenderOptions';
@@ -39,7 +39,8 @@ export class Game {
 
     // Boss
     private boss: Boss | null = null;
-    private bossSpawned: boolean = false;
+    private fateSpawned: boolean = false;
+    private nonoSpawned: boolean = false;
     private bossVfxMs: number = 0;
 
     // Player info
@@ -177,7 +178,8 @@ export class Game {
         this.state = 'playing';
         this.lastKiller = null;
         this.boss = null;
-        this.bossSpawned = false;
+        this.fateSpawned = false;
+        this.nonoSpawned = false;
 
         // Initialize world
         this.foodManager.initialize(this.foodManager.getTargetCount());
@@ -329,22 +331,25 @@ export class Game {
 
         // Update Boss
         if (this.boss) {
-            this.boss.update(dt, allSnakes);
+            this.boss.update(dt, allSnakes, foods);
             if (!this.boss.isAlive) {
                 this.handleBossDeath();
             }
             // Ambient boss VFX (lightweight)
             if (this.particlesEnabled) {
                 this.bossVfxMs += dt;
-                if (this.bossVfxMs >= 160) {
+                const interval = (this.graphicsQuality === 'medium' || this.graphicsQuality === 'low') ? 320 : 160;
+                if (this.bossVfxMs >= interval) {
                     const head = this.boss.segments[0]?.position ?? this.boss.position;
                     const jitter = Random.inCircle(this.boss.headRadius * 0.6);
                     this.particles.emit(head.add(jitter), '#ff2a2a', 1, 1.6, 4, 26);
                     this.bossVfxMs = 0;
                 }
             }
-        } else if (!this.bossSpawned && this.player.score >= Config.BOSS_SCORE_THRESHOLD) {
-            this.spawnBoss();
+        } else if (!this.fateSpawned && this.player.score >= Config.BOSS_FATE_SCORE_THRESHOLD) {
+            this.spawnBoss('FATE');
+        } else if (this.fateSpawned && !this.nonoSpawned && this.player.score >= Config.BOSS_NONO_SCORE_THRESHOLD) {
+            this.spawnBoss('NONO');
         }
 
         // Update particles
@@ -400,6 +405,19 @@ export class Game {
                 if (food.type === 'speed_boost') continue;
                 food.consume();
                 bot.grow(food.value);
+            }
+        }
+
+        // Boss eats food (especially NONO). This is intentionally quiet.
+        if (this.boss && this.boss.isAlive) {
+            const bossHead = this.boss.getHead();
+            const bossRadius = this.boss.getHeadRadius();
+            const bossFood = this.collisionSystem.checkCircleFoodCollisions(bossHead, bossRadius);
+            for (const food of bossFood) {
+                food.consume();
+            }
+            if (bossFood.length > 0) {
+                getAudioManager().play('collect', { volume: 0.28, pitchVariance: 0.02, cooldownMs: 140 });
             }
         }
 
@@ -463,21 +481,22 @@ export class Game {
         }
     }
 
-    private spawnBoss(): void {
+    private spawnBoss(kind: BossKind): void {
         if (!this.player) return;
 
-        this.bossSpawned = true;
+        if (kind === 'FATE') this.fateSpawned = true;
+        if (kind === 'NONO') this.nonoSpawned = true;
         getAudioManager().play('bossSpawn', { volume: 0.9, pitchVariance: 0.01 });
 
         // Spawn far away in front of player
-        const spawnDist = Config.BOSS_SAFE_DISTANCE;
+        const spawnDist = kind === 'NONO' ? Config.BOSS_NONO_SAFE_DISTANCE : Config.BOSS_FATE_SAFE_DISTANCE;
         const spawnPos = this.player.position.add(this.player.direction.multiply(spawnDist));
 
         // Clamp to world
         spawnPos.x = Math.max(100, Math.min(Config.WORLD_WIDTH - 100, spawnPos.x));
         spawnPos.y = Math.max(100, Math.min(Config.WORLD_HEIGHT - 100, spawnPos.y));
 
-        this.boss = new Boss(spawnPos);
+        this.boss = new Boss(kind, spawnPos);
         this.bossVfxMs = 0;
 
         // Spawn shockwave-ish burst
@@ -500,6 +519,10 @@ export class Game {
 
         // Spawn a small speed-boost pickup
         this.foodManager.spawnFood(this.boss.position, 'speed_boost');
+        if (this.boss.kind === 'NONO') {
+            // Reward for the harder boss.
+            this.foodManager.spawnFood(this.boss.position.add(Random.inCircle(40)), 'speed_boost');
+        }
 
         this.boss = null;
     }
@@ -507,9 +530,11 @@ export class Game {
     private checkBossCollisions(allSnakes: Snake[]): void {
         if (!this.boss || !this.boss.isAlive) return;
 
-        const bossHead = this.boss.segments[0]?.position ?? this.boss.position;
-        const bossHeadRadius = this.boss.segments[0]?.radius ?? this.boss.headRadius;
+        const bossHead = this.boss.getHead();
+        const bossHeadRadius = this.boss.getHeadRadius();
         const bossSegments = this.boss.segments;
+        const tailHitStart = Math.floor(bossSegments.length * 0.65);
+        const bodyStep = this.boss.kind === 'NONO' ? 3 : 2;
 
         for (const snake of allSnakes) {
             if (!snake.isAlive) continue;
@@ -526,14 +551,31 @@ export class Game {
                 continue;
             }
 
-            // Snake head touching boss body (kills snake)
+            // Snake head touching boss body
             // (Boss is large, but we keep it cheap by stepping segments.)
-            for (let i = 0; i < bossSegments.length; i += 2) {
+            for (let i = 0; i < bossSegments.length; i += bodyStep) {
                 const seg = bossSegments[i];
                 if (snakeHead.distance(seg.position) < snakeHeadRadius + seg.radius) {
-                    this.killSnake(snake, null);
-                    if (this.particlesEnabled) {
-                        this.particles.deathExplosion(snakeHead, snake.palette.primary);
+                    // Player can damage the boss by hitting the tail while boosting.
+                    // This gives the player a real win-condition besides just surviving.
+                    const canDamageBoss = snake.isPlayer && snake.isBoosting && i >= tailHitStart;
+                    if (canDamageBoss) {
+                        this.boss.takeDamage(1);
+                        snake.boostEnergy = Math.max(0, snake.boostEnergy - 35);
+                        if (snake.segments.length > 6) snake.shrink(1);
+                        // Push the player slightly away to avoid repeated hits in the same spot.
+                        snake.position = snake.position.add(snake.direction.multiply(-Math.max(20, snakeHeadRadius * 1.8)));
+                        snake.velocity = Vector2.zero();
+
+                        if (this.particlesEnabled) {
+                            this.particles.emit(snakeHead, '#ffffff', 8, 3.0, 5, 34);
+                        }
+                        getAudioManager().play('bossTick', { volume: 0.7, pitchVariance: 0.0, cooldownMs: 120 });
+                    } else {
+                        this.killSnake(snake, null);
+                        if (this.particlesEnabled) {
+                            this.particles.deathExplosion(snakeHead, snake.palette.primary);
+                        }
                     }
                     break;
                 }

@@ -420,8 +420,16 @@ export class PlayPage {
         this.bossHUD = document.createElement('div');
         this.bossHUD.className = 'boss-hud hidden';
         this.bossHUD.innerHTML = `
-            <div class="boss-warning">BOSS HAS ARRIVED</div>
-            <div class="boss-timer">Explodes in: <span id="boss-timer-val">${Config.BOSS_LIFETIME_SECONDS}</span>s</div>
+            <div class="boss-warning" id="boss-title">${t('hud.bossTitle', { name: 'FATE' })}</div>
+            <div class="boss-timer">
+                <span class="boss-timer-label">${t('hud.timeLeft')}</span>
+                <span id="boss-timer-val">0</span>s
+            </div>
+            <div class="boss-health" aria-hidden="true">
+              <div class="boss-health-track">
+                <div class="boss-health-fill" id="boss-hp-fill" style="width: 100%"></div>
+              </div>
+            </div>
             <div class="boss-countdown" aria-hidden="true">
               <div class="boss-countdown-track">
                 <div class="boss-countdown-fill" id="boss-countdown-fill" style="width: 100%"></div>
@@ -842,12 +850,25 @@ export class PlayPage {
             this.bossOverlay?.classList.remove('hidden');
             document.body.classList.add('boss-mode');
 
-            const timer = this.bossHUD?.querySelector('#boss-timer-val');
+            // Title + style (varies by boss)
+            if (this.bossHUD) {
+                (this.bossHUD as any).dataset.kind = boss.kind.toLowerCase();
+            }
+            const title = this.bossHUD?.querySelector('#boss-title') as HTMLElement | null;
+            if (title) title.textContent = t('hud.bossTitle', { name: boss.name });
+
+            const timer = this.bossHUD?.querySelector('#boss-timer-val') as HTMLElement | null;
             if (timer) timer.textContent = Math.ceil(boss.lifetime).toString();
+
+            const hp = this.bossHUD?.querySelector('#boss-hp-fill') as HTMLElement | null;
+            if (hp) {
+                const pct = boss.maxHealth > 0 ? Math.max(0, Math.min(1, boss.health / boss.maxHealth)) * 100 : 0;
+                hp.style.width = `${pct}%`;
+            }
 
             const fill = this.bossHUD?.querySelector('#boss-countdown-fill') as HTMLElement | null;
             if (fill) {
-                const pct = Math.max(0, Math.min(1, boss.lifetime / Config.BOSS_LIFETIME_SECONDS)) * 100;
+                const pct = boss.maxLifetime > 0 ? Math.max(0, Math.min(1, boss.lifetime / boss.maxLifetime)) * 100 : 0;
                 fill.style.width = `${pct}%`;
             }
 

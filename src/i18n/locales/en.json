@@ -204,7 +204,9 @@
         "score": "Score",
         "mass": "Mass",
         "rank": "Rank",
-        "boost": "BOOST"
+        "boost": "BOOST",
+        "bossTitle": "BOSS: {{name}}",
+        "timeLeft": "Time left"
     },
     "pause": {
         "title": "Paused",

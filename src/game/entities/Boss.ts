@@ -1,18 +1,31 @@
 import { Vector2 } from '../../utils/utils';
 import { Config } from '../../config';
 import { Snake, SnakeSegment } from './Snake';
+import type { Food } from './Food';
 import type { RenderOptions } from '../render/RenderOptions';
 
+export type BossKind = 'FATE' | 'NONO';
+
 export class Boss {
+    public readonly kind: BossKind;
+    public readonly name: string;
+
     public position: Vector2;
     public velocity: Vector2 = new Vector2();
     public direction: Vector2 = new Vector2(1, 0);
 
-    public headRadius: number = Config.BOSS_HEAD_RADIUS;
-    public segmentRadius: number = Config.BOSS_SEGMENT_RADIUS;
-    public speed: number = Config.BOSS_SPEED;
+    public headRadius: number;
+    public segmentRadius: number;
+    public speed: number;
+    public turnRate: number;
     public isAlive: boolean = true;
-    public lifetime: number = Config.BOSS_LIFETIME_SECONDS;
+    public lifetime: number;
+    public maxLifetime: number;
+
+    // Damage model (player can "kill" bosses by hitting the tail while boosting)
+    public maxHealth: number;
+    public health: number;
+    private lastDamageMs: number = 0;
 
     // Appearance
     public color: string = Config.COLORS.BOSS_RED;
@@ -21,15 +34,39 @@ export class Boss {
     // Body (snake-like)
     public segments: SnakeSegment[] = [];
     private positionHistory: Vector2[] = [];
-    private targetId: string | null = null;
-    private retargetMs: number = 0;
+    private snakeTargetId: string | null = null;
+    private snakeRetargetMs: number = 0;
+    private foodTargetId: string | null = null;
+    private foodRetargetMs: number = 0;
 
-    constructor(position: Vector2) {
+    constructor(kind: BossKind, position: Vector2) {
+        this.kind = kind;
+        this.name = kind;
         this.position = position.clone();
+
+        if (kind === 'NONO') {
+            this.headRadius = Config.BOSS_NONO_HEAD_RADIUS;
+            this.segmentRadius = Config.BOSS_NONO_SEGMENT_RADIUS;
+            this.speed = Config.BOSS_NONO_SPEED;
+            this.turnRate = Config.BOSS_NONO_TURN_RATE;
+            this.lifetime = Config.BOSS_NONO_LIFETIME_SECONDS;
+            this.maxLifetime = Config.BOSS_NONO_LIFETIME_SECONDS;
+            this.maxHealth = 8;
+        } else {
+            this.headRadius = Config.BOSS_FATE_HEAD_RADIUS;
+            this.segmentRadius = Config.BOSS_FATE_SEGMENT_RADIUS;
+            this.speed = Config.BOSS_FATE_SPEED;
+            this.turnRate = Config.BOSS_FATE_TURN_RATE;
+            this.lifetime = Config.BOSS_FATE_LIFETIME_SECONDS;
+            this.maxLifetime = Config.BOSS_FATE_LIFETIME_SECONDS;
+            this.maxHealth = 14;
+        }
+        this.health = this.maxHealth;
+
         this.initializeBody();
     }
 
-    public update(dt: number, snakes: Snake[]): void {
+    public update(dt: number, snakes: Snake[], foods: Food[] = []): void {
         if (!this.isAlive) return;
 
         const dtSec = dt / 1000;
@@ -40,26 +77,29 @@ export class Boss {
             return;
         }
 
-        this.retargetMs -= dt;
-        const target = this.getTargetSnake(snakes);
-        if (target) {
-            const desired = this.getPredictedTargetPosition(target);
-            const targetDir = desired.subtract(this.position).normalize();
-
-            const currentAngle = Math.atan2(this.direction.y, this.direction.x);
-            const targetAngle = Math.atan2(targetDir.y, targetDir.x);
-            let angleDiff = targetAngle - currentAngle;
-
-            while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-            while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-
-            const turnRate = Config.BOSS_TURN_RATE * dtSec;
-            if (Math.abs(angleDiff) > turnRate) {
-                angleDiff = Math.sign(angleDiff) * turnRate;
+        this.snakeRetargetMs -= dt;
+        this.foodRetargetMs -= dt;
+        if (this.kind === 'NONO') {
+            // NONO: prioritizes food (aggressive eater).
+            const targetFood = this.getTargetFood(foods);
+            if (targetFood) {
+                const targetDir = targetFood.position.subtract(this.position).normalize();
+                this.turnTowards(targetDir, dtSec);
+            } else {
+                const target = this.getTargetSnake(snakes);
+                if (target) {
+                    const desired = this.getPredictedTargetPosition(target);
+                    const targetDir = desired.subtract(this.position).normalize();
+                    this.turnTowards(targetDir, dtSec);
+                }
             }
-
-            const newAngle = currentAngle + angleDiff;
-            this.direction = Vector2.fromAngle(newAngle);
+        } else {
+            const target = this.getTargetSnake(snakes);
+            if (target) {
+                const desired = this.getPredictedTargetPosition(target);
+                const targetDir = desired.subtract(this.position).normalize();
+                this.turnTowards(targetDir, dtSec);
+            }
         }
 
         // Move head
@@ -88,19 +128,51 @@ export class Boss {
         this.isAlive = false;
     }
 
-    public getBoundsRadius(): number {
-        return this.headRadius + (this.segments.length - 1) * Config.BOSS_SEGMENT_SPACING;
+    public takeDamage(amount: number): void {
+        if (!this.isAlive) return;
+        const now = performance.now();
+        if (now - this.lastDamageMs < 220) return;
+        this.lastDamageMs = now;
+
+        const dmg = Math.max(0, Math.floor(amount));
+        if (dmg <= 0) return;
+        this.health = Math.max(0, this.health - dmg);
+        if (this.health <= 0) {
+            this.die();
+        }
     }
 
-    public render(ctx: CanvasRenderingContext2D, _options?: RenderOptions): void {
+    public getHead(): Vector2 {
+        return this.segments[0]?.position ?? this.position;
+    }
+
+    public getHeadRadius(): number {
+        return this.segments[0]?.radius ?? this.headRadius;
+    }
+
+    public getBoundsRadius(): number {
+        const spacing = this.kind === 'NONO' ? Config.BOSS_NONO_SEGMENT_SPACING : Config.BOSS_FATE_SEGMENT_SPACING;
+        return this.headRadius + (this.segments.length - 1) * spacing;
+    }
+
+    public render(ctx: CanvasRenderingContext2D, options?: RenderOptions): void {
         if (!this.isAlive) return;
+
+        if (this.kind === 'NONO') {
+            this.renderNono(ctx, options);
+            return;
+        }
 
         // Body (tail -> neck). Head is drawn separately for a stronger silhouette.
         ctx.save();
         ctx.lineWidth = 2;
         ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
 
-        for (let i = this.segments.length - 1; i >= 1; i--) {
+        const q = options?.quality ?? 'high';
+        const step = q === 'medium' || q === 'low' ? 2 : 1;
+        const allowHighlights = q === 'ultra' || q === 'super_ultra';
+
+        for (let i = this.segments.length - 1; i >= 1; i -= step) {
             const segment = this.segments[i];
             const ratio = i / this.segments.length;
 
@@ -118,7 +190,7 @@ export class Boss {
             ctx.stroke();
 
             // Tiny highlight "scale" (cheap)
-            if (i % 4 === 0) {
+            if (allowHighlights && i % 4 === 0) {
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
                 ctx.beginPath();
                 ctx.arc(segment.position.x - segment.radius * 0.25, segment.position.y - segment.radius * 0.25, Math.max(1, segment.radius * 0.35), 0, Math.PI * 2);
@@ -127,7 +199,9 @@ export class Boss {
         }
 
         // Spikes/ridges near head for a scarier profile (limited count for performance)
-        this.drawRidge(ctx);
+        if (allowHighlights) {
+            this.drawRidge(ctx);
+        }
 
         // Head
         this.drawHead(ctx);
@@ -139,13 +213,16 @@ export class Boss {
         this.segments = [];
         this.positionHistory = [];
 
-        for (let i = 0; i < Config.BOSS_LENGTH; i++) {
+        const length = this.kind === 'NONO' ? Config.BOSS_NONO_LENGTH : Config.BOSS_FATE_LENGTH;
+        const spacing = this.kind === 'NONO' ? Config.BOSS_NONO_SEGMENT_SPACING : Config.BOSS_FATE_SEGMENT_SPACING;
+
+        for (let i = 0; i < length; i++) {
             const segPos = new Vector2(
-                this.position.x - i * Config.BOSS_SEGMENT_SPACING,
+                this.position.x - i * spacing,
                 this.position.y
             );
 
-            const taper = 1 - (i / Config.BOSS_LENGTH) * 0.35;
+            const taper = 1 - (i / length) * 0.35;
             const radius = (i === 0 ? this.headRadius : this.segmentRadius) * taper;
 
             this.segments.push({ position: segPos, radius });
@@ -176,23 +253,23 @@ export class Boss {
 
     private getTargetSnake(snakes: Snake[]): Snake | null {
         // Keep a target for a short time to avoid jittery retargeting, but still switch if a much closer snake appears.
-        const current = this.targetId ? snakes.find(s => s.isAlive && s.id === this.targetId) ?? null : null;
+        const current = this.snakeTargetId ? snakes.find(s => s.isAlive && s.id === this.snakeTargetId) ?? null : null;
         const nearest = this.getNearestSnake(snakes);
 
         if (!nearest) {
-            this.targetId = null;
+            this.snakeTargetId = null;
             return null;
         }
 
         if (!current) {
-            this.targetId = nearest.id;
-            this.retargetMs = 650;
+            this.snakeTargetId = nearest.id;
+            this.snakeRetargetMs = 650;
             return nearest;
         }
 
-        if (this.retargetMs <= 0) {
-            this.targetId = nearest.id;
-            this.retargetMs = 650;
+        if (this.snakeRetargetMs <= 0) {
+            this.snakeTargetId = nearest.id;
+            this.snakeRetargetMs = 650;
             return nearest;
         }
 
@@ -200,12 +277,49 @@ export class Boss {
         const currentDist = current.position.distance(this.position);
         const nearestDist = nearest.position.distance(this.position);
         if (nearest.id !== current.id && nearestDist < currentDist * 0.7) {
-            this.targetId = nearest.id;
-            this.retargetMs = 650;
+            this.snakeTargetId = nearest.id;
+            this.snakeRetargetMs = 650;
             return nearest;
         }
 
         return current;
+    }
+
+    private getTargetFood(foods: Food[]): Food | null {
+        // Keep a food target for a short period to avoid jitter.
+        if (this.foodRetargetMs > 0 && this.foodTargetId) {
+            const current = foods.find(f => !f.isConsumed && f.id === this.foodTargetId) ?? null;
+            if (current) return current;
+        }
+
+        if (this.foodRetargetMs > 0) return null;
+
+        let best: Food | null = null;
+        let bestDistSq = Infinity;
+
+        // Soft cap scan cost
+        const n = Math.min(foods.length, 900);
+        for (let i = 0; i < n; i++) {
+            const f = foods[i];
+            if (!f || f.isConsumed) continue;
+            const dx = f.position.x - this.position.x;
+            const dy = f.position.y - this.position.y;
+            const dsq = dx * dx + dy * dy;
+            if (dsq < bestDistSq) {
+                bestDistSq = dsq;
+                best = f;
+            }
+        }
+
+        if (best) {
+            this.foodTargetId = best.id;
+            this.foodRetargetMs = 220;
+        } else {
+            this.foodTargetId = null;
+            this.foodRetargetMs = 220;
+        }
+
+        return best;
     }
 
     private getPredictedTargetPosition(target: Snake): Vector2 {
@@ -223,6 +337,73 @@ export class Boss {
         const offset = perp.multiply(this.headRadius * 0.9 * side);
 
         return predicted.add(offset);
+    }
+
+    private turnTowards(targetDir: Vector2, dtSec: number): void {
+        if (targetDir.magnitude() <= 0) return;
+
+        const currentAngle = Math.atan2(this.direction.y, this.direction.x);
+        const targetAngle = Math.atan2(targetDir.y, targetDir.x);
+        let angleDiff = targetAngle - currentAngle;
+
+        while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+
+        const maxTurn = this.turnRate * dtSec;
+        if (Math.abs(angleDiff) > maxTurn) {
+            angleDiff = Math.sign(angleDiff) * maxTurn;
+        }
+
+        const newAngle = currentAngle + angleDiff;
+        this.direction = Vector2.fromAngle(newAngle);
+    }
+
+    private renderNono(ctx: CanvasRenderingContext2D, options?: RenderOptions): void {
+        const q = options?.quality ?? 'high';
+        const step = q === 'medium' || q === 'low' ? 2 : 1;
+
+        // Minimalistic, fast boss: clean black silhouette with a sharp highlight.
+        ctx.save();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.10)';
+
+        for (let i = this.segments.length - 1; i >= 1; i -= step) {
+            const seg = this.segments[i];
+            const ratio = i / this.segments.length;
+            const shade = Math.floor(22 + 38 * (1 - ratio));
+            ctx.fillStyle = `rgb(${shade}, ${shade}, ${shade})`;
+            ctx.beginPath();
+            ctx.arc(seg.position.x, seg.position.y, seg.radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+        }
+
+        // Head (simple gradient)
+        const head = this.segments[0]?.position ?? this.position;
+        const angle = Math.atan2(this.direction.y, this.direction.x);
+        ctx.save();
+        ctx.translate(head.x, head.y);
+        ctx.rotate(angle);
+
+        const rx = this.headRadius * 1.15;
+        const ry = this.headRadius * 0.9;
+        const grad = ctx.createRadialGradient(rx * 0.35, -ry * 0.25, this.headRadius * 0.15, 0, 0, rx * 1.2);
+        grad.addColorStop(0, 'rgba(80, 80, 90, 1)');
+        grad.addColorStop(0.6, 'rgba(18, 18, 20, 1)');
+        grad.addColorStop(1, 'rgba(0, 0, 0, 1)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Tiny white eye
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+        ctx.beginPath();
+        ctx.arc(rx * 0.55, -ry * 0.05, Math.max(2, this.headRadius * 0.12), 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+        ctx.restore();
     }
 
     private drawEye(ctx: CanvasRenderingContext2D): void {

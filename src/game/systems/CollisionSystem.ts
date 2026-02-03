@@ -136,6 +136,24 @@ export class CollisionSystem {
     }
 
     /**
+     * Check food collisions for any circular entity (e.g., bosses)
+     */
+    public checkCircleFoodCollisions(position: Vector2, radius: number): Food[] {
+        const collided: Food[] = [];
+        const nearbyFoods = this.getNearbyFoods(position);
+
+        for (const food of nearbyFoods) {
+            if (food.isConsumed) continue;
+            const distance = position.distance(food.position);
+            if (distance < radius + food.radius) {
+                collided.push(food);
+            }
+        }
+
+        return collided;
+    }
+
+    /**
      * Check snake-snake collisions
      * Returns the snake that was hit (if head hits body) or null
      */

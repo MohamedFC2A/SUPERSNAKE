@@ -1342,6 +1342,7 @@ select:focus-visible {
   left: calc(var(--touch-pad) + env(safe-area-inset-left));
   right: auto;
   pointer-events: auto;
+  z-index: 900;
 }
 
 .joystick-container.right {
@@ -1394,7 +1395,7 @@ select:focus-visible {
   right: calc(var(--touch-pad) + env(safe-area-inset-right));
   left: auto;
   pointer-events: auto;
-  z-index: 60;
+  z-index: 900;
 }
 
 .boost-button-container.left {
@@ -3760,6 +3761,36 @@ select:focus-visible {
   -webkit-backdrop-filter: blur(12px);
 }
 
+.boss-timer-label {
+  color: rgba(255, 255, 255, 0.82);
+  margin-inline-end: 6px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.boss-health {
+  width: min(420px, 86vw);
+}
+
+.boss-health-track {
+  width: 100%;
+  height: 10px;
+  background: rgba(17, 17, 17, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.boss-health-fill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, rgba(34, 197, 94, 0.90), rgba(239, 68, 68, 0.90));
+  border-radius: 999px;
+  transition: width 120ms linear;
+}
+
 .boss-countdown {
   width: min(420px, 86vw);
 }
@@ -3818,6 +3849,32 @@ select:focus-visible {
 /* Boss mode: slightly darker + tenser */
 body.boss-mode #gameCanvas {
   filter: brightness(0.96) contrast(1.03) saturate(0.95);
+}
+
+@media (pointer: coarse) {
+  /* Filters on a full-screen canvas can be expensive on mobile and may feel like "controls stopped". */
+  body.boss-mode #gameCanvas {
+    filter: none;
+  }
+}
+
+.boss-hud[data-kind="nono"] .boss-warning {
+  background: rgba(0, 0, 0, 0.32);
+  border-color: rgba(255, 255, 255, 0.12);
+  animation-duration: 0.9s;
+}
+
+.boss-hud[data-kind="nono"] .boss-timer {
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.boss-hud[data-kind="nono"] .boss-countdown-track,
+.boss-hud[data-kind="nono"] .boss-health-track {
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.boss-hud[data-kind="nono"] .boss-countdown-fill {
+  background: linear-gradient(90deg, rgba(30, 30, 35, 0.92), rgba(0, 0, 0, 0.96));
 }
 
 @keyframes pulse-warning {
