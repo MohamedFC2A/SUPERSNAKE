@@ -14,7 +14,7 @@ export class InputManager {
     // External (UI) controls (used by PlayPage mobile UI)
     private externalControlsEnabled: boolean = false;
     private externalJoystickActive: boolean = false;
-    private externalJoystickDirection: Vector2 = Vector2.zero();
+    private externalJoystickVector: Vector2 = Vector2.zero();
     private externalBoostPressed: boolean = false;
 
     // Internal touch tracking (fallback)
@@ -51,14 +51,21 @@ export class InputManager {
             this.boostTouchId = null;
         } else {
             this.externalJoystickActive = false;
-            this.externalJoystickDirection = Vector2.zero();
+            this.externalJoystickVector = Vector2.zero();
             this.externalBoostPressed = false;
         }
     }
 
     public setExternalJoystick(direction: Vector2, active: boolean): void {
         this.externalJoystickActive = active;
-        this.externalJoystickDirection = direction.magnitude() > 0 ? direction.normalize() : Vector2.zero();
+        const mag = direction.magnitude();
+        if (mag <= 0) {
+            this.externalJoystickVector = Vector2.zero();
+            return;
+        }
+        // Keep magnitude (0..1) so we can use it as intent intensity for music.
+        const clamped = Math.min(1, mag);
+        this.externalJoystickVector = direction.normalize().multiply(clamped);
     }
 
     public setExternalBoostPressed(pressed: boolean): void {
@@ -226,8 +233,8 @@ export class InputManager {
         }
 
         // External joystick (mobile UI)
-        if (this.externalControlsEnabled && this.externalJoystickActive && this.externalJoystickDirection.magnitude() > 0) {
-            return this.externalJoystickDirection.normalize();
+        if (this.externalControlsEnabled && this.externalJoystickActive && this.externalJoystickVector.magnitude() > 0) {
+            return this.externalJoystickVector.normalize();
         }
 
         // Then joystick
@@ -247,6 +254,46 @@ export class InputManager {
             return this.externalBoostPressed || this.keys.get('Space') || false;
         }
         return this.boostPressed || this.keys.get('Space') || false;
+    }
+
+    /**
+     * Get player "intent" intensity (0..1) based on input strength.
+     * Used for adaptive music (so it fades to 0 when the player stops moving their input).
+     */
+    public getIntentIntensity(screenCenter: Vector2): number {
+        // Keyboard: any movement key implies full intent
+        if (
+            this.keys.get('KeyW') ||
+            this.keys.get('KeyA') ||
+            this.keys.get('KeyS') ||
+            this.keys.get('KeyD') ||
+            this.keys.get('ArrowUp') ||
+            this.keys.get('ArrowDown') ||
+            this.keys.get('ArrowLeft') ||
+            this.keys.get('ArrowRight')
+        ) {
+            return 1;
+        }
+
+        // External joystick (mobile UI): preserve magnitude
+        if (this.externalControlsEnabled && this.externalJoystickActive) {
+            const m = this.externalJoystickVector.magnitude();
+            return Math.max(0, Math.min(1, m));
+        }
+
+        // Internal touch joystick: magnitude already encodes intensity
+        if (this.joystickActive) {
+            const m = this.joystickDirection.magnitude();
+            return Math.max(0, Math.min(1, m));
+        }
+
+        // Mouse: distance from center maps to intent
+        const delta = this.mousePosition.subtract(screenCenter);
+        const dist = delta.magnitude();
+        const dead = 20;
+        const range = 220;
+        const v = (dist - dead) / range;
+        return Math.max(0, Math.min(1, v));
     }
 
     /**

@@ -74,7 +74,9 @@ export class SettingsPage {
 
         setRange('masterVolume', settings.audio.masterVolume, '%');
         setRange('sfxVolume', settings.audio.sfxVolume, '%');
+        setRange('musicVolume', settings.audio.musicVolume, '%');
         setCheck('sfxEnabled', settings.audio.sfxEnabled);
+        setCheck('musicEnabled', settings.audio.musicEnabled);
         setCheck('vibration', settings.audio.vibration);
 
         setSelect('mobileControlMode', settings.controls.mobileControlMode);
@@ -225,6 +227,20 @@ export class SettingsPage {
                     <div class="setting-control slider">
                         <input type="range" id="sfxVolume" min="0" max="100" value="${settings.audio.sfxVolume}">
                         <span class="slider-value">${settings.audio.sfxVolume}%</span>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <span class="setting-label">${t('settings.music')}</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="musicEnabled" ${settings.audio.musicEnabled ? 'checked' : ''}>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <span class="setting-label">${t('settings.musicVolume')}</span>
+                    <div class="setting-control slider">
+                        <input type="range" id="musicVolume" min="0" max="100" value="${settings.audio.musicVolume}" ${settings.audio.musicEnabled ? '' : 'disabled'}>
+                        <span class="slider-value">${settings.audio.musicVolume}%</span>
                     </div>
                 </div>
                 <div class="setting-row">
@@ -443,6 +459,17 @@ export class SettingsPage {
                 break;
             case 'sfxVolume':
                 this.settingsManager.updateSettings({ audio: { ...settings.audio, sfxVolume: value as number } });
+                break;
+            case 'musicEnabled': {
+                const enabled = value as boolean;
+                this.settingsManager.updateSettings({ audio: { ...settings.audio, musicEnabled: enabled } });
+                // Disable/enable the music volume slider instantly for better UX.
+                const slider = this.container.querySelector('#musicVolume') as HTMLInputElement | null;
+                if (slider) slider.disabled = !enabled;
+                break;
+            }
+            case 'musicVolume':
+                this.settingsManager.updateSettings({ audio: { ...settings.audio, musicVolume: value as number } });
                 break;
             case 'vibration':
                 this.settingsManager.updateSettings({ audio: { ...settings.audio, vibration: value as boolean } });

@@ -155,6 +155,8 @@
         "masterVolume": "مستوى الصوت الرئيسي",
         "sfx": "المؤثرات الصوتية",
         "sfxVolume": "مستوى المؤثرات الصوتية",
+        "music": "الموسيقى",
+        "musicVolume": "مستوى الموسيقى",
         "vibration": "الاهتزاز",
         "joystickSize": "حجم عصا التحكم",
         "joystickPosition": "موضع عصا التحكم",

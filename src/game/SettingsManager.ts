@@ -21,6 +21,8 @@ export interface GameSettings {
         masterVolume: number;
         sfxEnabled: boolean;
         sfxVolume: number;
+        musicEnabled: boolean;
+        musicVolume: number;
         vibration: boolean;
     };
     controls: {
@@ -62,6 +64,8 @@ const DEFAULT_SETTINGS: GameSettings = {
         masterVolume: 80,
         sfxEnabled: true,
         sfxVolume: 70,
+        musicEnabled: true,
+        musicVolume: 50,
         vibration: true,
     },
     controls: {
@@ -180,9 +184,9 @@ export class SettingsManager {
         const language = v?.accessibility?.language === 'ar' || v?.accessibility?.language === 'en' ? v.accessibility.language : undefined;
         const colorblindMode =
             v?.accessibility?.colorblindMode === 'none' ||
-            v?.accessibility?.colorblindMode === 'deuteranopia' ||
-            v?.accessibility?.colorblindMode === 'protanopia' ||
-            v?.accessibility?.colorblindMode === 'tritanopia'
+                v?.accessibility?.colorblindMode === 'deuteranopia' ||
+                v?.accessibility?.colorblindMode === 'protanopia' ||
+                v?.accessibility?.colorblindMode === 'tritanopia'
                 ? v.accessibility.colorblindMode
                 : undefined;
         const joystickPosition = v?.controls?.joystickPosition === 'left' || v?.controls?.joystickPosition === 'right' ? v.controls.joystickPosition : undefined;
@@ -191,6 +195,8 @@ export class SettingsManager {
         const masterVolume =
             typeof v?.audio?.masterVolume === 'number' ? MathUtils.clamp(Math.round(v.audio.masterVolume), 0, 100) : undefined;
         const sfxVolume = typeof v?.audio?.sfxVolume === 'number' ? MathUtils.clamp(Math.round(v.audio.sfxVolume), 0, 100) : undefined;
+        const musicVolume =
+            typeof v?.audio?.musicVolume === 'number' ? MathUtils.clamp(Math.round(v.audio.musicVolume), 0, 100) : undefined;
         const joystickSize =
             typeof v?.controls?.joystickSize === 'number' ? MathUtils.clamp(Math.round(v.controls.joystickSize), 80, 180) : undefined;
         const sensitivity =
@@ -210,6 +216,8 @@ export class SettingsManager {
                 masterVolume,
                 sfxEnabled: typeof v?.audio?.sfxEnabled === 'boolean' ? v.audio.sfxEnabled : undefined,
                 sfxVolume,
+                musicEnabled: typeof v?.audio?.musicEnabled === 'boolean' ? v.audio.musicEnabled : undefined,
+                musicVolume,
                 vibration: typeof v?.audio?.vibration === 'boolean' ? v.audio.vibration : undefined,
             },
             controls: {

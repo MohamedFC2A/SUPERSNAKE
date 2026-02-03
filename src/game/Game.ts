@@ -9,7 +9,7 @@ import { ParticleSystem } from './entities/Particle';
 import { CollisionSystem } from './systems/CollisionSystem';
 import { AISystem } from './systems/AISystem';
 import { Boss } from './entities/Boss';
-import { getAudioManager } from '../audio';
+import { getAudioManager, getMusicManager } from '../audio';
 import type { GameSettings } from './SettingsManager';
 import type { GraphicsQuality, RenderOptions } from './render/RenderOptions';
 
@@ -53,6 +53,7 @@ export class Game {
     private glowEnabled: boolean = false;
     private showGrid: boolean = true;
     private particlesEnabled: boolean = true;
+    private uiTheme: 'dark' | 'light' = 'dark';
 
     constructor(canvas: HTMLCanvasElement) {
         this.canvas = canvas;
@@ -73,6 +74,7 @@ export class Game {
         this.graphicsQuality = settings.graphics.quality;
         this.showGrid = settings.graphics.showGrid;
         this.particlesEnabled = settings.graphics.particles;
+        this.uiTheme = settings.ui.theme === 'light' ? 'light' : 'dark';
 
         // Clean visuals: glow is disabled across all presets (Ultra explicitly requires 0 glow).
         this.glowEnabled = false;
@@ -149,6 +151,9 @@ export class Game {
         for (let i = 0; i < Config.BOT_COUNT; i++) {
             this.spawnBot();
         }
+
+        // Start dynamic music
+        getMusicManager().play();
     }
 
     private spawnBot(): Snake {
@@ -179,6 +184,9 @@ export class Game {
     public endGame(): void {
         this.state = 'gameover';
 
+        // Stop music
+        getMusicManager().stop();
+
         if (this.player && this.player.score > this.highScore) {
             this.highScore = this.player.score;
         }
@@ -199,6 +207,7 @@ export class Game {
      */
     public pause(): void {
         this.isPaused = true;
+        getMusicManager().pause();
     }
 
     /**
@@ -206,6 +215,7 @@ export class Game {
      */
     public resume(): void {
         this.isPaused = false;
+        getMusicManager().play();
     }
 
     /**
@@ -227,6 +237,13 @@ export class Game {
         const direction = this.input.getDirection(screenCenter);
         this.player.setDirection(direction);
         this.player.setBoost(this.input.isBoostPressed());
+
+        // Update dynamic music based on player intent (not velocity).
+        // Velocity is almost always non-zero in snake games, which would keep music loud even "when stopped".
+        const intent = this.input.getIntentIntensity(screenCenter);
+        const boostBonus = this.input.isBoostPressed() ? 0.35 : 0;
+        const movementIntensity = Math.max(0, Math.min(1, intent * 0.75 + boostBonus));
+        getMusicManager().setMovementIntensity(movementIntensity);
 
         // Update player
         this.player.update(dt);
@@ -495,7 +512,13 @@ export class Game {
         this.renderer.clear();
 
         if (this.state === 'playing' && this.player) {
-            const renderOptions: RenderOptions = { quality: this.graphicsQuality, glowEnabled: this.glowEnabled };
+            const renderOptions: RenderOptions = {
+                quality: this.graphicsQuality,
+                glowEnabled: this.glowEnabled,
+                colorScheme: this.uiTheme,
+                ice: this.uiTheme === 'light',
+                labelColor: this.renderer.getLabelColor(),
+            };
             this.renderer.beginCamera();
 
             // Draw grid

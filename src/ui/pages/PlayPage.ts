@@ -11,6 +11,7 @@ import { Config } from '../../config';
 import { Vector2 } from '../../utils/utils';
 import { getDeferredInstallPrompt, isMobileLike, isStandaloneMode, promptInstallIfAvailable } from '../../pwa/install';
 import { getAuthState, submitGameSession, submitScore, subscribeAuth } from '../../supabase';
+import { getMusicManager } from '../../audio';
 import { getCookie, setCookie } from '../../utils/cookies';
 
 /**
@@ -541,14 +542,16 @@ export class PlayPage {
 
             const screenCenter = new Vector2(window.innerWidth / 2, window.innerHeight / 2);
             const target = this.touchActive ? this.touchPos.subtract(screenCenter) : Vector2.zero();
-            if (this.touchActive && target.magnitude() > 20) {
+            const dist = target.magnitude();
+            const mag = this.touchActive ? Math.max(0, Math.min(1, (dist - 20) / 240)) : 0;
+            if (this.touchActive && dist > 20) {
                 this.smoothedJoystick = this.smoothedJoystick.lerp(target.normalize(), follow);
             } else {
                 this.smoothedJoystick = this.smoothedJoystick.lerp(Vector2.zero(), release);
             }
 
-            const active = this.touchActive && this.smoothedJoystick.magnitude() > 0.08;
-            const finalDir = active ? this.smoothedJoystick : Vector2.zero();
+            const active = this.touchActive && mag > 0.02 && this.smoothedJoystick.magnitude() > 0.08;
+            const finalDir = active ? this.smoothedJoystick.multiply(mag) : Vector2.zero();
             this.game.getInput().setExternalJoystick(finalDir, active);
             this.game.getInput().setExternalBoostPressed(this.boostLocked);
             return;
@@ -573,8 +576,8 @@ export class PlayPage {
                 this.smoothedJoystick = this.smoothedJoystick.lerp(Vector2.zero(), release);
             }
 
-            const active = state.active && this.smoothedJoystick.magnitude() > 0.08;
-            const finalDir = active ? this.smoothedJoystick : Vector2.zero();
+            const active = state.active && state.magnitude > 0.02 && this.smoothedJoystick.magnitude() > 0.08;
+            const finalDir = active ? this.smoothedJoystick.multiply(state.magnitude) : Vector2.zero();
             this.game.getInput().setExternalJoystick(finalDir, active);
         }
 
@@ -912,6 +915,9 @@ export class PlayPage {
         // Clear game reference
         this.game = null;
         this.isGameRunning = false;
+
+        // Ensure music stops when leaving gameplay (so it doesn't leak into other pages).
+        getMusicManager().stop();
 
         // Ensure boss mode visuals are cleared
         document.body.classList.remove('boss-mode');

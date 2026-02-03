@@ -21,6 +21,15 @@ export class Renderer {
     private logicalWidth: number = 0;
     private logicalHeight: number = 0;
     private pixelRatio: number = 1;
+    private lastThemeKey: string | null = null;
+    private themeColors: { bgA: string; bgB: string; grid: string; boundary: string; label: string; scheme: 'dark' | 'light' } = {
+        bgA: Config.COLORS.BACKGROUND,
+        bgB: '#05070A',
+        grid: Config.COLORS.GRID_LINE,
+        boundary: 'rgba(255, 255, 255, 0.18)',
+        label: 'rgba(255, 255, 255, 0.85)',
+        scheme: 'dark',
+    };
 
     public camera: Camera = {
         position: new Vector2(Config.WORLD_WIDTH / 2, Config.WORLD_HEIGHT / 2),
@@ -32,6 +41,36 @@ export class Renderer {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d')!;
         this.resize();
+    }
+
+    private refreshThemeCacheIfNeeded(): void {
+        const root = document.documentElement;
+        const theme = root.dataset.theme === 'light' ? 'light' : 'dark';
+        const colorblind = root.dataset.colorblindMode || '';
+        const highContrast = root.classList.contains('high-contrast') ? '1' : '0';
+        const key = `${theme}|${colorblind}|${highContrast}`;
+        if (key === this.lastThemeKey) return;
+        this.lastThemeKey = key;
+
+        const cs = getComputedStyle(root);
+        const pick = (name: string, fallback: string): string => {
+            const v = cs.getPropertyValue(name).trim();
+            return v || fallback;
+        };
+
+        this.themeColors = {
+            scheme: theme,
+            bgA: pick('--game-bg-a', theme === 'light' ? '#F6FCFF' : Config.COLORS.BACKGROUND),
+            bgB: pick('--game-bg-b', theme === 'light' ? '#DFF3FF' : '#05070A'),
+            grid: pick('--game-grid', Config.COLORS.GRID_LINE),
+            boundary: pick('--game-boundary', 'rgba(255, 255, 255, 0.18)'),
+            label: pick('--game-label', theme === 'light' ? 'rgba(11, 18, 32, 0.75)' : 'rgba(255, 255, 255, 0.85)'),
+        };
+    }
+
+    public getLabelColor(): string {
+        this.refreshThemeCacheIfNeeded();
+        return this.themeColors.label;
     }
 
     public setPixelRatio(pixelRatio: number): void {
@@ -76,7 +115,29 @@ export class Renderer {
      * Clear the canvas
      */
     public clear(): void {
-        this.ctx.fillStyle = Config.COLORS.BACKGROUND;
+        this.refreshThemeCacheIfNeeded();
+
+        // Background gradient (Ice theme in light mode)
+        const bg = this.ctx.createLinearGradient(0, 0, 0, this.height);
+        bg.addColorStop(0, this.themeColors.bgA);
+        bg.addColorStop(1, this.themeColors.bgB);
+        this.ctx.fillStyle = bg;
+        this.ctx.fillRect(0, 0, this.width, this.height);
+
+        // Subtle vignette (keeps edges readable, especially on light backgrounds).
+        const outer = Math.max(this.width, this.height) * 0.78;
+        const inner = Math.min(this.width, this.height) * 0.22;
+        const vignette = this.ctx.createRadialGradient(
+            this.width / 2,
+            this.height / 2,
+            inner,
+            this.width / 2,
+            this.height / 2,
+            outer
+        );
+        vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
+        vignette.addColorStop(1, this.themeColors.scheme === 'light' ? 'rgba(2, 6, 23, 0.08)' : 'rgba(0, 0, 0, 0.20)');
+        this.ctx.fillStyle = vignette;
         this.ctx.fillRect(0, 0, this.width, this.height);
     }
 
@@ -160,13 +221,14 @@ export class Renderer {
      * Draw the background grid
      */
     public drawGrid(): void {
+        this.refreshThemeCacheIfNeeded();
         const gridSize = 80;
         const startX = Math.floor((this.camera.position.x - this.width / 2 / this.camera.zoom) / gridSize) * gridSize;
         const startY = Math.floor((this.camera.position.y - this.height / 2 / this.camera.zoom) / gridSize) * gridSize;
         const endX = startX + this.width / this.camera.zoom + gridSize * 2;
         const endY = startY + this.height / this.camera.zoom + gridSize * 2;
 
-        this.ctx.strokeStyle = Config.COLORS.GRID_LINE;
+        this.ctx.strokeStyle = this.themeColors.grid;
         this.ctx.lineWidth = 1;
 
         this.ctx.beginPath();
@@ -188,8 +250,9 @@ export class Renderer {
      * Draw world boundary
      */
     public drawBoundary(): void {
+        this.refreshThemeCacheIfNeeded();
         // Clean boundary (no heavy glow)
-        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+        this.ctx.strokeStyle = this.themeColors.boundary;
         this.ctx.lineWidth = 3;
         this.ctx.shadowBlur = 0;
 

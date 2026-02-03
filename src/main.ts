@@ -3,7 +3,7 @@ import { initI18n } from './i18n';
 import { getRouter } from './router';
 import { Layout } from './ui/Layout';
 import { SettingsManager } from './game/SettingsManager';
-import { getAudioManager } from './audio';
+import { getAudioManager, getMusicManager } from './audio';
 import { captureBeforeInstallPrompt } from './pwa/install';
 import { BUILD_ID } from './buildInfo';
 import { getAuthState, initAuth, subscribeAuth } from './supabase';
@@ -35,10 +35,14 @@ function main(): void {
 
     // Initialize audio manager with settings
     const audioManager = getAudioManager();
+    const musicManager = getMusicManager();
     const settings = settingsManager.getSettings();
     audioManager.setEnabled(settings.audio.sfxEnabled);
     audioManager.setMasterVolume(settings.audio.masterVolume);
     audioManager.setSfxVolume(settings.audio.sfxVolume);
+    musicManager.setEnabled(settings.audio.musicEnabled);
+    musicManager.setMasterVolume(settings.audio.masterVolume);
+    musicManager.setMusicVolume(settings.audio.musicVolume);
 
     // Supabase auth (optional; requires VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY)
     initAuth();
@@ -48,6 +52,9 @@ function main(): void {
         audioManager.setEnabled(newSettings.audio.sfxEnabled);
         audioManager.setMasterVolume(newSettings.audio.masterVolume);
         audioManager.setSfxVolume(newSettings.audio.sfxVolume);
+        musicManager.setEnabled(newSettings.audio.musicEnabled);
+        musicManager.setMasterVolume(newSettings.audio.masterVolume);
+        musicManager.setMusicVolume(newSettings.audio.musicVolume);
     });
 
     // Get app container
@@ -72,7 +79,7 @@ function main(): void {
     let currentPlayPage: PlayPage | null = null;
 
     // Mandatory login: re-render nav + redirect away from protected routes when signed out.
-    const protectedPaths = new Set(['/','/play','/leaderboards','/changelog','/settings']);
+    const protectedPaths = new Set(['/', '/play', '/leaderboards', '/changelog', '/settings']);
 
     subscribeAuth((auth) => {
         const path = router.getCurrentPath() || '/';

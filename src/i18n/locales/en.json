@@ -155,6 +155,8 @@
         "masterVolume": "Master Volume",
         "sfx": "Sound Effects",
         "sfxVolume": "SFX Volume",
+        "music": "Music",
+        "musicVolume": "Music Volume",
         "vibration": "Vibration",
         "joystickSize": "Joystick Size",
         "joystickPosition": "Joystick Position",

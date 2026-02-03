@@ -1,4 +1,4 @@
-import { Vector2, Random } from '../../utils/utils';
+import { Vector2, Random, ColorUtils } from '../../utils/utils';
 import { Config, SnakePalette } from '../../config';
 import type { RenderOptions } from '../render/RenderOptions';
 
@@ -258,14 +258,45 @@ export class Snake {
     public render(ctx: CanvasRenderingContext2D, options?: RenderOptions): void {
         if (!this.isAlive) return;
         const glowEnabled = options?.glowEnabled === true;
+        const ice = options?.ice === true;
+
+        const mixWithWhite = (hex: string, amount: number, alpha: number): string => {
+            const rgb = ColorUtils.hexToRgb(hex);
+            if (!rgb) return hex;
+            const a = Math.max(0, Math.min(1, amount));
+            const r = Math.round(rgb[0] + (255 - rgb[0]) * a);
+            const g = Math.round(rgb[1] + (255 - rgb[1]) * a);
+            const b = Math.round(rgb[2] + (255 - rgb[2]) * a);
+            return `rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(1, alpha))})`;
+        };
+        const primary = this.palette.primary;
+        const secondary = this.palette.secondary;
+        const iceFill0 = ice ? mixWithWhite(primary, 0.70, 0.95) : '';
+        const iceFill1 = ice ? mixWithWhite(primary, 0.15, 0.98) : '';
+        const iceFill2 = ice ? mixWithWhite(secondary, 0.05, 0.98) : '';
 
         // Draw segments from tail to head
         for (let i = this.segments.length - 1; i >= 0; i--) {
             const segment = this.segments[i];
-            const ratio = i / this.segments.length;
+            const radius = segment.radius;
 
-            // Gradient from secondary to primary color
-            ctx.fillStyle = i === 0 ? this.palette.primary : this.palette.secondary;
+            // Base fill
+            if (ice) {
+                const g = ctx.createRadialGradient(
+                    segment.position.x - radius * 0.25,
+                    segment.position.y - radius * 0.25,
+                    radius * 0.15,
+                    segment.position.x,
+                    segment.position.y,
+                    radius
+                );
+                g.addColorStop(0, iceFill0);
+                g.addColorStop(0.55, iceFill1);
+                g.addColorStop(1, iceFill2);
+                ctx.fillStyle = g;
+            } else {
+                ctx.fillStyle = i === 0 ? primary : secondary;
+            }
 
             // Add glow to head
             if (i === 0) {
@@ -278,14 +309,31 @@ export class Snake {
             }
 
             ctx.beginPath();
-            ctx.arc(segment.position.x, segment.position.y, segment.radius, 0, Math.PI * 2);
+            ctx.arc(segment.position.x, segment.position.y, radius, 0, Math.PI * 2);
             ctx.fill();
+
+            // Ice rim light
+            if (ice) {
+                ctx.lineWidth = 1;
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+                ctx.stroke();
+            }
 
             if (i === 0) {
                 ctx.shadowBlur = 0;
 
                 // Draw eyes
                 this.drawEyes(ctx);
+
+                // Small head highlight (ice sparkle)
+                if (ice) {
+                    const hx = this.position.x + this.direction.x * this.headRadius * 0.15;
+                    const hy = this.position.y + this.direction.y * this.headRadius * 0.15;
+                    ctx.beginPath();
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
+                    ctx.arc(hx - this.direction.y * this.headRadius * 0.25, hy + this.direction.x * this.headRadius * 0.25, this.headRadius * 0.45, 0, Math.PI * 2);
+                    ctx.fill();
+                }
             }
         }
 
@@ -295,7 +343,7 @@ export class Snake {
             ctx.textAlign = 'center';
 
             const labelY = this.position.y - this.headRadius - 10;
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+            ctx.fillStyle = options?.labelColor || 'rgba(255, 255, 255, 0.85)';
             ctx.fillText(this.name, this.position.x, labelY);
 
             // AI level badge: dots next to name (1 green, 2 yellow, 3 red)

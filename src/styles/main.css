@@ -7,6 +7,8 @@
   --accent: #3B82F6;
   --accent-hover: #60A5FA;
   --accent-muted: rgba(59, 130, 246, 0.2);
+  --accent-press-bg: rgba(59, 130, 246, 0.14);
+  --accent-press-border: rgba(59, 130, 246, 0.45);
 
   /* Semantic Colors */
   --color-success: #22C55E;
@@ -27,6 +29,23 @@
   --ui-border-hover: #333333;
   --ui-divider: #1A1A1A;
   --ui-hover: rgba(255, 255, 255, 0.06);
+
+  /* Glass (default: dark) */
+  --glass-bg: rgba(17, 17, 17, 0.32);
+  --glass-bg-strong: rgba(17, 17, 17, 0.40);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --glass-shadow: 0 22px 70px rgba(0, 0, 0, 0.65);
+  --glass-subtle: rgba(0, 0, 0, 0.22);
+  --overlay-dim: rgba(0,  0,  0,  0.55);
+  --touch-pad: clamp(12px, 3vw, 20px);
+  --control-handle-bg: rgba(255, 255, 255, 0.10);
+
+  /* Game theme vars (default: dark) */
+  --game-bg-a: #000000;
+  --game-bg-b: #05070A;
+  --game-grid: rgba(255, 255, 255, 0.035);
+  --game-boundary: rgba(255, 255, 255, 0.18);
+  --game-label: rgba(255, 255, 255, 0.85);
 
   /* Text Colors */
   --text-primary: #EDEDED;
@@ -142,36 +161,53 @@ body {
   display: block;
   width: 100%;
   height: 100%;
-  background: var(--bg-primary);
+  background: var(--game-bg-a);
   touch-action: none;
 }
 
 /* Light Theme */
 html[data-theme="light"] {
-  --accent: #2563EB;
-  --accent-hover: #1D4ED8;
-  --accent-muted: rgba(37, 99, 235, 0.14);
+  /* Ice Glass */
+  --accent: #0EA5E9;
+  --accent-hover: #0284C7;
+  --accent-muted: rgba(14, 165, 233, 0.12);
+  --accent-press-bg: rgba(14, 165, 233, 0.14);
+  --accent-press-border: rgba(14, 165, 233, 0.38);
 
   --color-success: #16A34A;
   --color-warning: #D97706;
   --color-danger: #DC2626;
   --color-gold: #CA8A04;
 
-  --bg-primary: #F7F7F7;
+  --bg-primary: #F4FBFF;
   --bg-secondary: #FFFFFF;
   --bg-elevated: #FFFFFF;
-  --bg-surface: #FFFFFF;
+  --bg-surface: rgba(255, 255, 255, 0.72);
 
-  --ui-panel: rgba(255, 255, 255, 0.92);
+  --ui-panel: rgba(255, 255, 255, 0.88);
   --ui-panel-solid: #FFFFFF;
-  --ui-border: #E5E7EB;
-  --ui-border-hover: #D1D5DB;
-  --ui-divider: #E5E7EB;
+  --ui-border: rgba(2, 132, 199, 0.18);
+  --ui-border-hover: rgba(2, 132, 199, 0.28);
+  --ui-divider: rgba(2, 132, 199, 0.14);
   --ui-hover: rgba(0, 0, 0, 0.04);
 
-  --text-primary: #0B0B0B;
-  --text-secondary: #374151;
-  --text-muted: #6B7280;
+  --text-primary: #0B1220;
+  --text-secondary: #334155;
+  --text-muted: #64748B;
+
+  --glass-bg: rgba(255, 255, 255, 0.60);
+  --glass-bg-strong: rgba(255, 255, 255, 0.72);
+  --glass-border: rgba(2, 132, 199, 0.20);
+  --glass-shadow: 0 18px 60px rgba(2, 6, 23, 0.12);
+  --overlay-dim: rgba(2, 6, 23, 0.22);
+  --control-handle-bg: rgba(2, 132, 199, 0.10);
+  --glass-subtle: rgba(2, 6, 23, 0.06);
+
+  --game-bg-a: #F6FCFF;
+  --game-bg-b: #DFF3FF;
+  --game-grid: rgba(2, 132, 199, 0.10);
+  --game-boundary: rgba(2, 132, 199, 0.22);
+  --game-label: rgba(11, 18, 32, 0.75);
 
   --focus-ring: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent);
 }
@@ -1254,20 +1290,20 @@ select:focus-visible {
 
 .joystick-container {
   position: absolute;
-  bottom: calc(var(--space-xl) + env(safe-area-inset-bottom));
-  inset-inline-start: calc(var(--space-xl) + env(safe-area-inset-left));
+  bottom: calc(var(--touch-pad) + env(safe-area-inset-bottom));
+  inset-inline-start: calc(var(--touch-pad) + env(safe-area-inset-left));
   pointer-events: auto;
 }
 
 .joystick-container.right {
   inset-inline-start: auto;
-  inset-inline-end: calc(var(--space-xl) + env(safe-area-inset-right));
+  inset-inline-end: calc(var(--touch-pad) + env(safe-area-inset-right));
 }
 
 .joystick-base {
   position: absolute;
   inset: 0;
-  background: var(--ui-panel);
+  background: var(--glass-bg-strong);
   border: 2px solid var(--ui-border);
   border-radius: 50%;
   display: flex;
@@ -1284,25 +1320,36 @@ select:focus-visible {
   left: 50%;
   width: 48px;
   height: 48px;
-  background: rgba(255, 255, 255, 0.10);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  background: var(--control-handle-bg);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
   border-radius: 50%;
   transform: translate(-50%, -50%);
   transition: transform 0.05s linear;
 }
 
+.joystick-container {
+  opacity: 0.78;
+  transform: scale(0.98);
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+}
+
+.joystick-container.active {
+  opacity: 1;
+  transform: scale(1);
+}
+
 .boost-button-container {
   position: absolute;
-  bottom: calc(var(--space-xl) + env(safe-area-inset-bottom));
-  inset-inline-end: calc(var(--space-xl) + env(safe-area-inset-right));
+  bottom: calc(var(--touch-pad) + env(safe-area-inset-bottom));
+  inset-inline-end: calc(var(--touch-pad) + env(safe-area-inset-right));
   pointer-events: auto;
   z-index: 60;
 }
 
 .boost-button-container.left {
   inset-inline-end: auto;
-  inset-inline-start: calc(var(--space-xl) + env(safe-area-inset-left));
+  inset-inline-start: calc(var(--touch-pad) + env(safe-area-inset-left));
 }
 
 .boost-charge-ring {
@@ -1323,8 +1370,8 @@ select:focus-visible {
   position: absolute;
   inset: 7px;
   border-radius: 50%;
-  background: rgba(17, 17, 17, 0.28);
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: var(--glass-bg-strong);
+  border: 1px solid var(--glass-border);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   display: flex;
@@ -1349,10 +1396,26 @@ select:focus-visible {
   color: rgba(255, 255, 255, 0.75);
 }
 
+.boost-button-container {
+  opacity: 0.86;
+  transform: scale(0.99);
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+}
+
+.boost-button-container.pressed,
+.boost-button-container.boost-ready {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.boost-text {
+  color: var(--text-secondary);
+}
+
 .boost-button-container.pressed .boost-button {
   transform: scale(0.96);
-  background: rgba(59, 130, 246, 0.14);
-  border-color: rgba(59, 130, 246, 0.45);
+  background: var(--accent-press-bg);
+  border-color: var(--accent-press-border);
 }
 
 .boost-button-container.boost-ready .boost-charge-ring {
@@ -1365,7 +1428,7 @@ select:focus-visible {
 /* If joystick is on the right, move boost to the left (legacy support) */
 .joystick-container.right~.boost-button-container {
   inset-inline-end: auto;
-  inset-inline-start: calc(var(--space-xl) + env(safe-area-inset-left));
+  inset-inline-start: calc(var(--touch-pad) + env(safe-area-inset-left));
 }
 
 /* ===== Rotate Overlay (force landscape on mobile) ===== */
@@ -1376,7 +1439,7 @@ select:focus-visible {
   align-items: center;
   justify-content: center;
   padding: var(--space-l);
-  background: rgba(0, 0, 0, 0.75);
+  background: var(--overlay-dim);
   z-index: 4000;
   pointer-events: auto;
 }
@@ -1385,12 +1448,12 @@ select:focus-visible {
   width: min(420px, 92vw);
   padding: var(--space-xl);
   border-radius: var(--radius-l);
-  background: rgba(17, 17, 17, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: var(--glass-bg-strong);
+  border: 1px solid var(--glass-border);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   text-align: center;
-  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--glass-shadow);
 }
 
 .rotate-icon {
@@ -1811,13 +1874,13 @@ select:focus-visible {
     inset-inline-start: var(--space-m);
     inset-inline-end: var(--space-m);
     flex-direction: column;
-    background: rgba(0, 0, 0, 0.88);
-    border: 1px solid rgba(255, 255, 255, 0.10);
+    background: var(--glass-bg-strong);
+    border: 1px solid var(--glass-border);
     border-radius: var(--radius-l);
     padding: var(--space-s);
     display: none;
     z-index: 999;
-    box-shadow: 0 22px 70px rgba(0, 0, 0, 0.65);
+    box-shadow: var(--glass-shadow);
   }
 
   .nav-links.open {
@@ -3207,12 +3270,12 @@ select:focus-visible {
 
 .play-back-btn {
   position: absolute;
-  top: var(--space-m);
-  inset-inline-start: var(--space-m);
+  top: calc(var(--touch-pad) + env(safe-area-inset-top));
+  inset-inline-start: calc(var(--touch-pad) + env(safe-area-inset-left));
   width: 48px;
   height: 48px;
   border-radius: var(--radius-full);
-  background: var(--ui-panel);
+  background: var(--glass-bg-strong);
   border: 1px solid var(--ui-border);
   color: var(--text-primary);
   font-size: 20px;
@@ -3239,8 +3302,11 @@ select:focus-visible {
 .play-start-content {
   text-align: center;
   padding: var(--space-xl);
-  max-width: 400px;
+  max-width: min(420px, 92vw);
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-m);
 }
 
 .play-start-title {
@@ -3257,15 +3323,37 @@ select:focus-visible {
   margin-bottom: var(--space-xl);
 }
 
+@media (pointer: coarse), (max-width: 720px) {
+  .play-start-content {
+    padding: calc(var(--space-l) + env(safe-area-inset-top)) var(--space-l) calc(var(--space-l) + env(safe-area-inset-bottom));
+    gap: var(--space-m);
+  }
+
+  .play-start-title {
+    font-size: 34px;
+  }
+
+  .play-start-subtitle {
+    font-size: 14px;
+    margin-bottom: var(--space-m);
+  }
+
+  .play-start-btn {
+    padding: 16px 18px;
+    font-size: 18px;
+    border-radius: 14px;
+  }
+}
+
 .install-required-card {
   margin: 0 auto var(--space-l);
   padding: var(--space-l);
   border-radius: var(--radius-l);
-  background: rgba(17, 17, 17, 0.30);
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
+  box-shadow: var(--glass-shadow);
   text-align: start;
 }
 
@@ -3295,7 +3383,7 @@ select:focus-visible {
   align-items: center;
   justify-content: center;
   padding: var(--space-l);
-  background: rgba(0, 0, 0, 0.55);
+  background: var(--overlay-dim);
   z-index: 5000;
 }
 
@@ -3304,11 +3392,11 @@ select:focus-visible {
   width: min(520px, 94vw);
   padding: var(--space-xl);
   border-radius: var(--radius-l);
-  background: rgba(17, 17, 17, 0.32);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--glass-bg-strong);
+  border: 1px solid var(--glass-border);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.65);
+  box-shadow: var(--glass-shadow);
 }
 
 .install-icon {
@@ -3332,8 +3420,8 @@ select:focus-visible {
 .install-steps {
   display: grid;
   gap: var(--space-s);
-  background: rgba(0, 0, 0, 0.22);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--glass-subtle);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-m);
   padding: var(--space-m);
   margin-bottom: var(--space-l);
