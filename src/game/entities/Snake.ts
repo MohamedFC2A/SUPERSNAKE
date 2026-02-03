@@ -449,7 +449,7 @@ export class Snake {
         // Crown for #1 snake (always readable).
         if (this.isTopRank) {
             const baseY = this.position.y - this.headRadius - Math.max(10, this.headRadius * 0.45);
-            drawCrown(ctx, this.position.x, baseY, Math.max(16, this.headRadius * 0.85), options);
+            drawCrown(ctx, this.position.x, baseY, Math.max(18, this.headRadius * 1.05), options);
         }
 
         // Draw name above head

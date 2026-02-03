@@ -17,6 +17,7 @@ export interface MiniMapSnake {
     color: string;
     isPlayer: boolean;
     name: string;
+    isCrowned?: boolean;
 }
 
 export interface MiniMapConfig {
@@ -77,7 +78,8 @@ export class MiniMap {
         playerY: number,
         snakes: MiniMapSnake[],
         viewportWidth?: number,
-        viewportHeight?: number
+        viewportHeight?: number,
+        crownMarkers?: { x: number; y: number }[]
     ): void {
         if (!this.isVisible) return;
 
@@ -139,6 +141,15 @@ export class MiniMap {
         for (const snake of sortedSnakes) {
             this.drawSnake(ctx, snake, scaleX, scaleY);
         }
+
+        // Crown markers (top snake + bosses). Draw last so it's always visible.
+        if (crownMarkers && crownMarkers.length > 0) {
+            for (const m of crownMarkers) {
+                const x = m.x * scaleX;
+                const y = m.y * scaleY;
+                this.drawCrownMarker(ctx, x, y);
+            }
+        }
     }
 
     private drawSnake(
@@ -193,6 +204,49 @@ export class MiniMap {
         ctx.arc(headX, headY, headSize, 0, Math.PI * 2);
         ctx.fillStyle = snake.isPlayer ? '#3B82F6' : snake.color;
         ctx.fill();
+
+        // Small crown hint on the head for the top snake.
+        if (snake.isCrowned) {
+            this.drawCrownMarker(ctx, headX, headY);
+        }
+    }
+
+    private drawCrownMarker(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+        // Big, bright yellow marker so players can locate the crowned entity quickly.
+        const r = 7;
+        ctx.save();
+        ctx.translate(x, y);
+
+        // Outer ring glow
+        ctx.beginPath();
+        ctx.arc(0, 0, r + 4, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255, 212, 0, 0.22)';
+        ctx.fill();
+
+        // Star-like crown dot
+        ctx.beginPath();
+        const spikes = 6;
+        const outer = r;
+        const inner = r * 0.55;
+        for (let i = 0; i < spikes * 2; i++) {
+            const a = (i / (spikes * 2)) * Math.PI * 2 - Math.PI / 2;
+            const rad = i % 2 === 0 ? outer : inner;
+            const px = Math.cos(a) * rad;
+            const py = Math.sin(a) * rad;
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fillStyle = '#FFD400';
+        ctx.fill();
+
+        // Tiny highlight
+        ctx.beginPath();
+        ctx.arc(-r * 0.18, -r * 0.18, r * 0.22, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+        ctx.fill();
+
+        ctx.restore();
     }
 
     show(): void {

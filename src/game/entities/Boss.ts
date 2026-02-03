@@ -218,7 +218,7 @@ export class Boss {
         const head = this.getHead();
         const headR = this.getHeadRadius();
         const baseY = head.y - headR - Math.max(14, headR * 0.55);
-        drawCrown(ctx, head.x, baseY, Math.max(22, headR * 0.95), options);
+        drawCrown(ctx, head.x, baseY, Math.max(26, headR * 1.15), options);
     }
 
     private initializeBody(): void {

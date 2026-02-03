@@ -986,10 +986,25 @@ export class PlayPage {
 
     private updateMiniMap(): void {
         if (document.documentElement.classList.contains('hide-minimap')) return;
-        const player = this.game?.getPlayer();
+        const game = this.game;
+        if (!game) return;
+        const player = game.getPlayer();
         if (!player || !this.miniMap) return;
 
-        const snakes = this.game!.getAllSnakes();
+        const snakes = game.getAllSnakes();
+        // Determine the top snake (highest score). Prefer player on ties.
+        let top = snakes[0] || player;
+        let topScore = top.score;
+        for (const s of snakes) {
+            if (!s.isAlive) continue;
+            if (s.score > topScore) {
+                top = s;
+                topScore = s.score;
+            } else if (s.score === topScore && top && !top.isPlayer && s.isPlayer) {
+                top = s;
+            }
+        }
+
         const miniMapSnakes = snakes.map(snake => ({
             segments: snake.segments.map(seg => ({
                 x: seg.position.x,
@@ -997,15 +1012,29 @@ export class PlayPage {
             })),
             color: snake.palette.primary,
             isPlayer: snake.isPlayer,
-            name: snake.name
+            name: snake.name,
+            isCrowned: snake.id === top.id,
         }));
+
+        const crownMarkers: { x: number; y: number }[] = [];
+        // Top snake marker at head
+        if (top && top.segments[0]) {
+            crownMarkers.push({ x: top.segments[0].position.x, y: top.segments[0].position.y });
+        }
+        // Boss marker (boss has a crown too)
+        const boss = game.getBoss();
+        if (boss && boss.isAlive) {
+            const head = boss.getHead();
+            crownMarkers.push({ x: head.x, y: head.y });
+        }
 
         this.miniMap.update(
             player.segments[0]?.position.x || 0,
             player.segments[0]?.position.y || 0,
             miniMapSnakes,
             window.innerWidth * 1.5,
-            window.innerHeight * 1.5
+            window.innerHeight * 1.5,
+            crownMarkers
         );
     }
 
