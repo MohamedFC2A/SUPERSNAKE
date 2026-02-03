@@ -24,6 +24,7 @@ export interface GameSettings {
         sfxVolume: number;
         musicEnabled: boolean;
         musicVolume: number;
+        musicTrack: 'song' | 'blue';
         vibration: boolean;
     };
     controls: {
@@ -67,6 +68,7 @@ const DEFAULT_SETTINGS: GameSettings = {
         sfxVolume: 70,
         musicEnabled: true,
         musicVolume: 50,
+        musicTrack: 'song',
         vibration: true,
     },
     controls: {
@@ -290,6 +292,8 @@ export class SettingsManager {
         if (Number.isFinite(v?.audio?.sfxVolume)) audio.sfxVolume = MathUtils.clamp(Math.round(v.audio.sfxVolume), 0, 100);
         if (typeof v?.audio?.musicEnabled === 'boolean') audio.musicEnabled = v.audio.musicEnabled;
         if (Number.isFinite(v?.audio?.musicVolume)) audio.musicVolume = MathUtils.clamp(Math.round(v.audio.musicVolume), 0, 100);
+        const musicTrack = v?.audio?.musicTrack === 'blue' || v?.audio?.musicTrack === 'song' ? v.audio.musicTrack : undefined;
+        if (musicTrack) audio.musicTrack = musicTrack;
         if (typeof v?.audio?.vibration === 'boolean') audio.vibration = v.audio.vibration;
         if (Object.keys(audio).length > 0) normalized.audio = audio;
 

@@ -18,3 +18,5 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Local scratch audio (do not commit)
+/blue.mp3

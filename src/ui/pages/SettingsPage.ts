@@ -99,6 +99,7 @@ export class SettingsPage {
         setRange('musicVolume', settings.audio.musicVolume, '%');
         setCheck('sfxEnabled', settings.audio.sfxEnabled);
         setCheck('musicEnabled', settings.audio.musicEnabled);
+        setSelect('musicTrack', settings.audio.musicTrack);
         setCheck('vibration', settings.audio.vibration);
 
         setSelect('mobileControlMode', settings.controls.mobileControlMode);
@@ -256,6 +257,13 @@ export class SettingsPage {
                         <input type="checkbox" id="musicEnabled" ${settings.audio.musicEnabled ? 'checked' : ''}>
                         <span class="toggle-slider"></span>
                     </label>
+                </div>
+                <div class="setting-row">
+                    <span class="setting-label">${t('settings.musicTrack')}</span>
+                    <select class="setting-select" id="musicTrack" ${settings.audio.musicEnabled ? '' : 'disabled'}>
+                        <option value="song" ${settings.audio.musicTrack === 'song' ? 'selected' : ''}>${t('settings.musicTrackSong')}</option>
+                        <option value="blue" ${settings.audio.musicTrack === 'blue' ? 'selected' : ''}>${t('settings.musicTrackBlue')}</option>
+                    </select>
                 </div>
                 <div class="setting-row">
                     <span class="setting-label">${t('settings.musicVolume')}</span>
@@ -496,8 +504,13 @@ export class SettingsPage {
                 // Disable/enable the music volume slider instantly for better UX.
                 const slider = this.container.querySelector('#musicVolume') as HTMLInputElement | null;
                 if (slider) slider.disabled = !enabled;
+                const track = this.container.querySelector('#musicTrack') as HTMLSelectElement | null;
+                if (track) track.disabled = !enabled;
                 break;
             }
+            case 'musicTrack':
+                this.settingsManager.updateSettings({ audio: { ...settings.audio, musicTrack: value as 'song' | 'blue' } });
+                break;
             case 'musicVolume':
                 this.settingsManager.updateSettings({ audio: { ...settings.audio, musicVolume: value as number } });
                 break;

@@ -41,6 +41,7 @@ function main(): void {
     audioManager.setMasterVolume(settings.audio.masterVolume);
     audioManager.setSfxVolume(settings.audio.sfxVolume);
     musicManager.setEnabled(settings.audio.musicEnabled);
+    musicManager.setTrack(settings.audio.musicTrack);
     musicManager.setMasterVolume(settings.audio.masterVolume);
     musicManager.setMusicVolume(settings.audio.musicVolume);
 
@@ -53,6 +54,7 @@ function main(): void {
         audioManager.setMasterVolume(newSettings.audio.masterVolume);
         audioManager.setSfxVolume(newSettings.audio.sfxVolume);
         musicManager.setEnabled(newSettings.audio.musicEnabled);
+        musicManager.setTrack(newSettings.audio.musicTrack);
         musicManager.setMasterVolume(newSettings.audio.masterVolume);
         musicManager.setMusicVolume(newSettings.audio.musicVolume);
     });
