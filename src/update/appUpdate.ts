@@ -44,28 +44,84 @@ export async function checkForUpdate(): Promise<UpdateStatus> {
 }
 
 export async function applyUpdate(): Promise<void> {
-  // Clear any old runtime caches (if a previous SW was installed).
-  try {
-    if ('serviceWorker' in navigator) {
-      const regs = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(regs.map((r) => r.unregister()));
-    }
-  } catch {
-    // ignore
+  const fallbackReload = (): void => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('v', Date.now().toString());
+    window.location.replace(url.toString());
+  };
+
+  if (!('serviceWorker' in navigator)) {
+    fallbackReload();
+    return;
   }
 
-  try {
-    if ('caches' in window) {
-      const keys = await caches.keys();
-      await Promise.all(keys.map((k) => caches.delete(k)));
-    }
-  } catch {
-    // ignore
-  }
+  const waitForControllerChange = async (timeoutMs: number): Promise<void> => {
+    const current = navigator.serviceWorker.controller;
+    await new Promise<void>((resolve, reject) => {
+      const to = window.setTimeout(() => {
+        navigator.serviceWorker.removeEventListener('controllerchange', onChange);
+        reject(new Error('SW controllerchange timeout'));
+      }, timeoutMs);
+      const onChange = () => {
+        if (navigator.serviceWorker.controller === current) return;
+        window.clearTimeout(to);
+        navigator.serviceWorker.removeEventListener('controllerchange', onChange);
+        resolve();
+      };
+      navigator.serviceWorker.addEventListener('controllerchange', onChange);
+    }).catch(() => {
+      // ignore
+    });
+  };
 
-  // Force a fresh navigation (bust CDN/proxy caches).
-  const url = new URL(window.location.href);
-  url.searchParams.set('v', Date.now().toString());
-  window.location.replace(url.toString());
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (!reg) {
+      fallbackReload();
+      return;
+    }
+
+    // Ask SW to check for updates.
+    try {
+      await reg.update();
+    } catch {
+      // ignore
+    }
+
+    const waitForWaiting = async (timeoutMs: number): Promise<ServiceWorker | null> => {
+      if (reg.waiting) return reg.waiting;
+      const installing = reg.installing;
+      if (!installing) return null;
+
+      await new Promise<void>((resolve) => {
+        const to = window.setTimeout(() => {
+          installing.removeEventListener('statechange', onChange);
+          resolve();
+        }, timeoutMs);
+        const onChange = () => {
+          if (installing.state === 'installed' || installing.state === 'activated') {
+            window.clearTimeout(to);
+            installing.removeEventListener('statechange', onChange);
+            resolve();
+          }
+        };
+        installing.addEventListener('statechange', onChange);
+      });
+
+      return reg.waiting ?? null;
+    };
+
+    const waiting = reg.waiting ?? (await waitForWaiting(6000));
+    if (waiting) {
+      waiting.postMessage({ type: 'SKIP_WAITING' });
+      await waitForControllerChange(6000);
+      window.location.reload();
+      return;
+    }
+
+    // No waiting worker: do a cache-busted reload.
+    fallbackReload();
+  } catch {
+    fallbackReload();
+  }
 }
-

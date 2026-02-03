@@ -16,12 +16,42 @@
     "menu": {
         "title": "الثعبان الناجي",
         "subtitle": "ساحة البقاء",
+        "tagline": "ابقَ على قيد الحياة في الساحة",
         "play": "ابدأ اللعب",
         "settings": "الإعدادات",
         "changelog": "سجل التحديثات",
         "enterName": "أدخل اسمك",
         "highScore": "أعلى نتيجة",
         "hint": "اضغط ENTER أو انقر على ابدأ اللعب للبدء"
+    },
+    "common": {
+        "loading": "جاري التحميل…",
+        "saving": "جارِ الحفظ…",
+        "save": "حفظ",
+        "cancel": "إلغاء",
+        "edit": "تعديل",
+        "delete": "حذف"
+    },
+    "play": {
+        "playerName": "اسم اللاعب",
+        "installCardTitle": "تثبيت (اختياري)",
+        "installCardText": "لأفضل تجربة على الجوال، يمكنك تثبيت اللعبة على الشاشة الرئيسية.",
+        "installOpenButton": "تثبيت",
+        "installIosHintShort": "iPhone/iPad: مشاركة → إضافة للشاشة الرئيسية",
+        "installDialogLabel": "تثبيت",
+        "installTitle": "تثبيت (اختياري)",
+        "installText": "قم بالتثبيت لتجربة شاشة كاملة وتحميل أسرع وتجربة أفضل على الجوال.",
+        "installAndroidTitle": "Android",
+        "installAndroidStep": "اضغط «تثبيت» عند ظهور الإشعار، ثم افتحها من الشاشة الرئيسية.",
+        "installIosTitle": "iPhone/iPad",
+        "installIosStep": "مشاركة → «إضافة للشاشة الرئيسية»، ثم افتحها من الشاشة الرئيسية.",
+        "installNow": "تثبيت",
+        "installDone": "تم",
+        "installClose": "إغلاق",
+        "rotateDialogLabel": "تدوير الجهاز",
+        "rotateTitle": "قم بتدوير جهازك",
+        "rotateSubtitle": "يرجى التبديل للوضع الأفقي للعب",
+        "rotateTryAgain": "حاول مرة أخرى"
     },
     "home": {
         "feature1Title": "لعب كلاسيكي",
@@ -53,7 +83,11 @@
         "highScoreDate": "تاريخ أعلى نتيجة",
         "highScoreVersion": "إصدار أعلى نتيجة",
         "memberSince": "يلعب منذ",
-        "lastPlayed": "آخر لعبة"
+        "lastPlayed": "آخر لعبة",
+        "sessionStorageBlocked": "تم حظر Session Storage في هذا المتصفح/الوضع. لا يمكن إكمال تسجيل الدخول عبر Google (PKCE يحتاج تخزيناً مؤقتاً). أوقف وضع التصفح الخاص/حماية التتبع الصارمة لهذا الموقع ثم حاول مرة أخرى.",
+        "debugCopied": "تم نسخ تقرير التشخيص إلى الحافظة.",
+        "debugCopyFailed": "فشل نسخ تقرير التشخيص.",
+        "sessionRefreshAttempted": "تمت محاولة تحديث الجلسة عند {{time}}"
     },
     "auth": {
         "requiredTitle": "تسجيل الدخول مطلوب",
@@ -141,6 +175,8 @@
         "showGrid": "إظهار الشبكة",
         "showMinimap": "إظهار الخريطة المصغرة",
         "language": "اللغة",
+        "languageEnglish": "English",
+        "languageArabic": "العربية",
         "colorblindMode": "وضع عمى الألوان",
         "none": "بدون",
         "highContrast": "تباين عالي",
@@ -198,8 +234,37 @@
         "back": "رجوع",
         "empty": "لا توجد تحديثات بعد.",
         "searchPlaceholder": "ابحث في التحديثات…",
+        "clearSearchAria": "مسح البحث",
         "showing": "عرض {{shown}} من {{total}}",
         "onePerLine": "سطر لكل عنصر",
-        "developerButton": "المطور"
+        "developerButton": "المطور",
+        "loadingText": "جاري جلب سجل التحديثات من Supabase.",
+        "added": "مضاف",
+        "changed": "معدّل",
+        "fixed": "مصلح",
+        "adminTitle": "المسؤول",
+        "adminText": "يمكنك إضافة/تعديل عناصر سجل التحديثات (مخزنة في Supabase).",
+        "addEntry": "إضافة تحديث",
+        "confirmDelete": "حذف هذا التحديث؟",
+        "deleteFailed": "فشل حذف التحديث",
+        "editor": {
+            "signInFirst": "سجّل الدخول أولاً لتعديل سجل التحديثات.",
+            "signInFirstShort": "سجّل الدخول أولاً.",
+            "addTitle": "إضافة تحديث",
+            "editTitle": "تعديل تحديث",
+            "version": "الإصدار",
+            "versionPlaceholder": "1.0.0",
+            "date": "التاريخ",
+            "title": "العنوان",
+            "titlePlaceholder": "عنوان التحديث",
+            "description": "الوصف",
+            "descriptionPlaceholder": "وصف اختياري",
+            "aiFill": "تعبئة بالـ AI",
+            "aiWorking": "AI…",
+            "aiFailed": "فشل الـ AI",
+            "titleFirst": "اكتب العنوان أولاً.",
+            "versionTitleRequired": "الإصدار والعنوان مطلوبان.",
+            "saveFailed": "فشل حفظ التحديث"
+        }
     }
 }

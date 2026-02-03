@@ -111,7 +111,7 @@ export class ChangelogPage {
                     <input class="form-input changelog-search-input" id="changelogSearchInput"
                            type="search" value="${this.escapeAttr(this.query)}"
                            placeholder="${t('changelog.searchPlaceholder')}" autocomplete="off" />
-                    ${this.query ? `<button class="btn-small changelog-clear" id="changelogClearBtn" type="button" aria-label="Clear search">×</button>` : ''}
+                    ${this.query ? `<button class="btn-small changelog-clear" id="changelogClearBtn" type="button" aria-label="${t('changelog.clearSearchAria')}">×</button>` : ''}
                 </div>
                 <div class="changelog-meta">
                     <span class="changelog-count">
@@ -135,10 +135,10 @@ export class ChangelogPage {
 
             ${this.isAdmin ? `
                 <div class="panel" style="margin-top: 14px;">
-                    <div class="panel-title">Admin</div>
-                    <div class="panel-text">You can add/edit changelog entries (stored in Supabase).</div>
+                    <div class="panel-title">${t('changelog.adminTitle')}</div>
+                    <div class="panel-text">${t('changelog.adminText')}</div>
                     <div class="panel-actions">
-                        <button class="btn btn-primary" id="addChangelogBtn" type="button">Add entry</button>
+                        <button class="btn btn-primary" id="addChangelogBtn" type="button">${t('changelog.addEntry')}</button>
                     </div>
                 </div>
             ` : ''}
@@ -152,8 +152,8 @@ export class ChangelogPage {
     private renderLoading(): string {
         return `
             <div class="panel" style="max-width: 760px; margin: 0 auto;">
-                <div class="panel-title">Loading…</div>
-                <div class="panel-text">Fetching changelog from Supabase.</div>
+                <div class="panel-title">${t('common.loading')}</div>
+                <div class="panel-text">${t('changelog.loadingText')}</div>
             </div>
         `;
     }
@@ -193,8 +193,8 @@ export class ChangelogPage {
 
                 ${this.isAdmin ? `
                     <div class="changelog-entry-actions">
-                        <button class="btn btn-secondary btn-small" data-action="edit" data-id="${entry.id}" type="button">Edit</button>
-                        <button class="btn btn-secondary btn-small" data-action="delete" data-id="${entry.id}" type="button">Delete</button>
+                        <button class="btn btn-secondary btn-small" data-action="edit" data-id="${entry.id}" type="button">${t('common.edit')}</button>
+                        <button class="btn btn-secondary btn-small" data-action="delete" data-id="${entry.id}" type="button">${t('common.delete')}</button>
                     </div>
                 ` : ''}
             </article>
@@ -205,39 +205,39 @@ export class ChangelogPage {
         const isEdit = !!this.editing;
         const entry = this.editing;
         const lockText = mode === 'signedOut'
-            ? 'Sign in first to edit the changelog.'
+            ? t('changelog.editor.signInFirst')
             : '';
 
         return `
             <div class="modal-overlay" id="changelogEditorModal" role="dialog" aria-modal="true" aria-labelledby="changelogEditorTitle">
                 <div class="modal-content modal-large">
-                    <h2 class="modal-title" id="changelogEditorTitle">${isEdit ? 'Edit entry' : 'Add entry'}</h2>
+                    <h2 class="modal-title" id="changelogEditorTitle">${isEdit ? t('changelog.editor.editTitle') : t('changelog.editor.addTitle')}</h2>
                     ${lockText ? `<div class="panel panel-warning" style="margin: 10px 0;"><div class="panel-text">${this.escapeHtml(lockText)}</div></div>` : ''}
 
                     <form id="changelogEditorForm" class="entry-form">
                         <div class="form-row">
                             <div class="form-group">
-                                <label for="entryVersion" class="form-label">Version *</label>
+                                <label for="entryVersion" class="form-label">${t('changelog.editor.version')} *</label>
                                 <input type="text" id="entryVersion" class="form-input"
-                                       value="${this.escapeAttr(entry?.version || '')}" placeholder="1.0.0" required ${this.saving ? 'disabled' : ''}>
+                                       value="${this.escapeAttr(entry?.version || '')}" placeholder="${t('changelog.editor.versionPlaceholder')}" required ${this.saving ? 'disabled' : ''}>
                             </div>
                             <div class="form-group">
-                                <label for="entryDate" class="form-label">Date</label>
+                                <label for="entryDate" class="form-label">${t('changelog.editor.date')}</label>
                                 <input type="date" id="entryDate" class="form-input"
                                        value="${this.escapeAttr(entry?.date || new Date().toISOString().split('T')[0])}" ${this.saving ? 'disabled' : ''}>
                             </div>
                         </div>
 
                         <div class="form-group">
-                            <label for="entryTitle" class="form-label">Title *</label>
+                            <label for="entryTitle" class="form-label">${t('changelog.editor.title')} *</label>
                             <input type="text" id="entryTitle" class="form-input"
-                                   value="${this.escapeAttr(entry?.title || '')}" placeholder="Update title" required ${this.saving ? 'disabled' : ''}>
+                                   value="${this.escapeAttr(entry?.title || '')}" placeholder="${t('changelog.editor.titlePlaceholder')}" required ${this.saving ? 'disabled' : ''}>
                         </div>
 
                         <div class="form-group">
-                            <label for="entryDescription" class="form-label">Description</label>
+                            <label for="entryDescription" class="form-label">${t('changelog.editor.description')}</label>
                             <textarea id="entryDescription" class="form-input form-textarea"
-                                      placeholder="Optional description" ${this.saving ? 'disabled' : ''}>${this.escapeHtml(entry?.description || '')}</textarea>
+                                      placeholder="${t('changelog.editor.descriptionPlaceholder')}" ${this.saving ? 'disabled' : ''}>${this.escapeHtml(entry?.description || '')}</textarea>
                         </div>
 
                         <div class="form-group">
@@ -262,11 +262,11 @@ export class ChangelogPage {
 
                         <div class="modal-actions">
                             <button type="button" class="btn btn-secondary" id="aiFillBtn" ${this.saving || this.aiFilling || mode === 'signedOut' ? 'disabled' : ''}>
-                                ${this.aiFilling ? 'AI…' : 'AI fill'}
+                                ${this.aiFilling ? t('changelog.editor.aiWorking') : t('changelog.editor.aiFill')}
                             </button>
-                            <button type="button" class="btn btn-secondary" id="cancelChangelogEditorBtn" ${this.saving ? 'disabled' : ''}>Cancel</button>
+                            <button type="button" class="btn btn-secondary" id="cancelChangelogEditorBtn" ${this.saving ? 'disabled' : ''}>${t('common.cancel')}</button>
                             <button type="submit" class="btn btn-primary" ${this.saving || mode === 'signedOut' ? 'disabled' : ''}>
-                                ${this.saving ? 'Saving…' : 'Save'}
+                                ${this.saving ? t('common.saving') : t('common.save')}
                             </button>
                         </div>
                     </form>
@@ -321,7 +321,7 @@ export class ChangelogPage {
             btn.addEventListener('click', () => {
                 const id = Number((btn as HTMLElement).getAttribute('data-id') || '');
                 if (!Number.isFinite(id)) return;
-                if (!confirm('Delete this entry?')) return;
+                if (!confirm(t('changelog.confirmDelete'))) return;
                 void this.handleDelete(id);
             });
         });
@@ -373,7 +373,7 @@ export class ChangelogPage {
     private async handleAiFill(overwrite: boolean): Promise<void> {
         const auth = getAuthState();
         if (!auth.user || !auth.session?.access_token) {
-            this.formError = 'Sign in first.';
+            this.formError = t('changelog.editor.signInFirstShort');
             this.render();
             return;
         }
@@ -381,7 +381,7 @@ export class ChangelogPage {
         const title = (this.container.querySelector('#entryTitle') as HTMLInputElement | null)?.value || '';
         const cleanTitle = title.trim();
         if (!cleanTitle) {
-            this.formError = 'Write a title first.';
+            this.formError = t('changelog.editor.titleFirst');
             this.render();
             return;
         }
@@ -402,7 +402,9 @@ export class ChangelogPage {
 
             const data = await res.json().catch(() => null);
             if (!res.ok) {
-                this.formError = (data && (data.error || data.detail)) ? `${data.error || 'AI failed'}${data.detail ? `: ${data.detail}` : ''}` : 'AI failed';
+                this.formError = (data && (data.error || data.detail))
+                    ? `${data.error || t('changelog.editor.aiFailed')}${data.detail ? `: ${data.detail}` : ''}`
+                    : t('changelog.editor.aiFailed');
                 this.aiFilling = false;
                 this.render();
                 return;
@@ -417,7 +419,7 @@ export class ChangelogPage {
             this.aiFilling = false;
             this.render();
         } catch (e: any) {
-            this.formError = e?.message || 'AI failed';
+            this.formError = e?.message || t('changelog.editor.aiFailed');
             this.aiFilling = false;
             this.render();
         }
@@ -447,7 +449,7 @@ export class ChangelogPage {
         };
 
         if (!payload.version.trim() || !payload.title.trim()) {
-            this.formError = 'Version and title are required.';
+            this.formError = t('changelog.editor.versionTitleRequired');
             this.render();
             return;
         }
@@ -467,7 +469,7 @@ export class ChangelogPage {
             await this.refresh();
         } catch (e: any) {
             this.error = null;
-            this.formError = e?.message || 'Failed to save entry';
+            this.formError = e?.message || t('changelog.editor.saveFailed');
             this.saving = false;
             this.render();
         } finally {
@@ -480,7 +482,7 @@ export class ChangelogPage {
             await deleteChangelogEntry(id);
             await this.refresh();
         } catch (e: any) {
-            this.error = e?.message || 'Failed to delete entry';
+            this.error = e?.message || t('changelog.deleteFailed');
             this.render();
         }
     }

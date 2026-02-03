@@ -1,13 +1,12 @@
 import './styles/main.css';
 import { initI18n } from './i18n';
-import { setLocale } from './i18n';
 import { getRouter } from './router';
 import { Layout } from './ui/Layout';
 import { SettingsManager } from './game/SettingsManager';
 import { getAudioManager } from './audio';
 import { captureBeforeInstallPrompt } from './pwa/install';
-import { getAuthState, initAuth, subscribeAuth, updateProfileSettings } from './supabase';
-import { applyTheme } from './theme/theme';
+import { BUILD_ID } from './buildInfo';
+import { getAuthState, initAuth, subscribeAuth } from './supabase';
 import { HomePage } from './ui/pages/HomePage';
 import { PlayPage } from './ui/pages/PlayPage';
 import { LeaderboardsPage } from './ui/pages/LeaderboardsPage';
@@ -21,27 +20,11 @@ import { AuthRequiredPage } from './ui/pages/AuthRequiredPage';
  * Snake Survival Game - Entry Point with Router
  */
 function main(): void {
-    // Disable runtime caching to avoid stale builds (and to avoid local caching as requested).
-    if (!import.meta.env.DEV) {
-        void (async () => {
-            try {
-                if ('serviceWorker' in navigator) {
-                    const regs = await navigator.serviceWorker.getRegistrations();
-                    await Promise.all(regs.map((r) => r.unregister()));
-                }
-            } catch {
-                // ignore
-            }
-
-            try {
-                if ('caches' in window) {
-                    const keys = await caches.keys();
-                    await Promise.all(keys.map((k) => caches.delete(k)));
-                }
-            } catch {
-                // ignore
-            }
-        })();
+    // Register service worker for PWA + update flow (production only).
+    if (!import.meta.env.DEV && 'serviceWorker' in navigator) {
+        void navigator.serviceWorker.register(`/sw.js?v=${encodeURIComponent(BUILD_ID || 'unknown')}`).catch(() => {
+            // ignore
+        });
     }
 
     // Initialize i18n (must be before UI)
@@ -59,9 +42,6 @@ function main(): void {
 
     // Supabase auth (optional; requires VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY)
     initAuth();
-
-    // Default theme (may be overridden by profile after sign-in)
-    applyTheme('dark');
 
     // Subscribe to settings changes
     settingsManager.subscribe((newSettings) => {
@@ -93,67 +73,8 @@ function main(): void {
 
     // Mandatory login: re-render nav + redirect away from protected routes when signed out.
     const protectedPaths = new Set(['/','/play','/leaderboards','/changelog','/settings']);
-    // Sync settings + theme from Supabase profile and persist changes back to Supabase.
-    let applyingRemoteSettings = false;
-    let lastRemoteSettingsJson: string | null = null;
-    let persistTimer: number | null = null;
-
-    const flushPersistSettings = (): void => {
-        if (persistTimer) {
-            window.clearTimeout(persistTimer);
-            persistTimer = null;
-        }
-        const auth = getAuthState();
-        if (!auth.user) return;
-        if (applyingRemoteSettings) return;
-        void updateProfileSettings(settingsManager.getSettings());
-    };
-
-    const schedulePersistSettings = (): void => {
-        // If this change came from Supabase (applyRemoteSettings), don't schedule a write-back.
-        // Otherwise we can get a "ping-pong" where remote settings re-save and disrupt UI.
-        if (applyingRemoteSettings) return;
-        if (persistTimer) window.clearTimeout(persistTimer);
-        persistTimer = window.setTimeout(() => {
-            persistTimer = null;
-            const auth = getAuthState();
-            if (!auth.user) return;
-            if (applyingRemoteSettings) return;
-            void updateProfileSettings(settingsManager.getSettings());
-        }, 600);
-    };
-
-    settingsManager.subscribe(() => {
-        schedulePersistSettings();
-    });
-
-    // Ensure the latest settings snapshot is pushed before the page goes to background.
-    window.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'hidden') flushPersistSettings();
-    });
-    window.addEventListener('pagehide', () => flushPersistSettings());
 
     subscribeAuth((auth) => {
-        const theme = auth.profile?.theme === 'light' ? 'light' : 'dark';
-        applyTheme(theme);
-
-        // Apply remote settings (once per change)
-        const remoteSettings = auth.profile?.settings;
-        const json = remoteSettings ? JSON.stringify(remoteSettings) : null;
-        if (json && json !== lastRemoteSettingsJson) {
-            lastRemoteSettingsJson = json;
-            applyingRemoteSettings = true;
-            settingsManager.applyRemoteSettings(remoteSettings);
-            // Apply remote language preference if present
-            try {
-                const lang = (remoteSettings as any)?.accessibility?.language;
-                if (lang === 'ar' || lang === 'en') setLocale(lang);
-            } catch {
-                // ignore
-            }
-            applyingRemoteSettings = false;
-        }
-
         const path = router.getCurrentPath() || '/';
         if (!auth.user && protectedPaths.has(path)) {
             router.navigate('/profile');
@@ -236,8 +157,6 @@ function main(): void {
 
     // PWA: capture install prompt for mobile "install required" flow
     window.addEventListener('beforeinstallprompt', captureBeforeInstallPrompt as any);
-
-    // NOTE: Service worker is intentionally NOT registered to prevent stale-cache issues.
 
     // Debug: Show FPS in development
     if (import.meta.env.DEV) {

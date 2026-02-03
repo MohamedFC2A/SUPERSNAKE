@@ -16,12 +16,42 @@
     "menu": {
         "title": "Snake Survival",
         "subtitle": "Survival Arena",
+        "tagline": "Survive the arena",
         "play": "Play",
         "settings": "Settings",
         "changelog": "Changelog",
         "enterName": "Enter your name",
         "highScore": "High Score",
         "hint": "Press ENTER or tap PLAY to start"
+    },
+    "common": {
+        "loading": "Loading…",
+        "saving": "Saving…",
+        "save": "Save",
+        "cancel": "Cancel",
+        "edit": "Edit",
+        "delete": "Delete"
+    },
+    "play": {
+        "playerName": "Player name",
+        "installCardTitle": "Install (optional)",
+        "installCardText": "For the best mobile experience, you can install the game to your home screen.",
+        "installOpenButton": "Install",
+        "installIosHintShort": "iPhone/iPad: Share → Add to Home Screen",
+        "installDialogLabel": "Install",
+        "installTitle": "Install (optional)",
+        "installText": "Install for faster loading, full-screen play, and a better mobile experience.",
+        "installAndroidTitle": "Android",
+        "installAndroidStep": "Tap “Install” when prompted, then open from your home screen.",
+        "installIosTitle": "iPhone/iPad",
+        "installIosStep": "Share → “Add to Home Screen”, then open from the home screen.",
+        "installNow": "Install",
+        "installDone": "Done",
+        "installClose": "Close",
+        "rotateDialogLabel": "Rotate device",
+        "rotateTitle": "Rotate your device",
+        "rotateSubtitle": "Please switch to landscape to play",
+        "rotateTryAgain": "Try again"
     },
     "home": {
         "feature1Title": "Classic Gameplay",
@@ -53,7 +83,11 @@
         "highScoreDate": "High Score Date",
         "highScoreVersion": "High Score Version",
         "memberSince": "Playing Since",
-        "lastPlayed": "Last Played"
+        "lastPlayed": "Last Played",
+        "sessionStorageBlocked": "Session storage is blocked in this browser/context. Google sign-in cannot finish (PKCE needs temporary storage). Disable private mode / strict tracking protection for this site, then try again.",
+        "debugCopied": "Copied debug report to clipboard.",
+        "debugCopyFailed": "Failed to copy debug report.",
+        "sessionRefreshAttempted": "Session refresh attempted at {{time}}"
     },
     "auth": {
         "requiredTitle": "Sign in required",
@@ -141,6 +175,8 @@
         "showGrid": "Show Grid",
         "showMinimap": "Show Minimap",
         "language": "Language",
+        "languageEnglish": "English",
+        "languageArabic": "العربية",
         "colorblindMode": "Colorblind Mode",
         "none": "None",
         "highContrast": "High Contrast",
@@ -198,8 +234,37 @@
         "back": "Back",
         "empty": "No changelog entries yet.",
         "searchPlaceholder": "Search updates…",
+        "clearSearchAria": "Clear search",
         "showing": "Showing {{shown}} of {{total}}",
         "onePerLine": "one per line",
-        "developerButton": "Developer"
+        "developerButton": "Developer",
+        "loadingText": "Fetching changelog from Supabase.",
+        "added": "Added",
+        "changed": "Changed",
+        "fixed": "Fixed",
+        "adminTitle": "Admin",
+        "adminText": "You can add/edit changelog entries (stored in Supabase).",
+        "addEntry": "Add entry",
+        "confirmDelete": "Delete this entry?",
+        "deleteFailed": "Failed to delete entry",
+        "editor": {
+            "signInFirst": "Sign in first to edit the changelog.",
+            "signInFirstShort": "Sign in first.",
+            "addTitle": "Add entry",
+            "editTitle": "Edit entry",
+            "version": "Version",
+            "versionPlaceholder": "1.0.0",
+            "date": "Date",
+            "title": "Title",
+            "titlePlaceholder": "Update title",
+            "description": "Description",
+            "descriptionPlaceholder": "Optional description",
+            "aiFill": "AI fill",
+            "aiWorking": "AI…",
+            "aiFailed": "AI failed",
+            "titleFirst": "Write a title first.",
+            "versionTitleRequired": "Version and title are required.",
+            "saveFailed": "Failed to save entry"
+        }
     }
 }

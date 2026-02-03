@@ -1,10 +1,7 @@
 import { t, onLocaleChange } from '../../i18n';
 import { SettingsManager, GameSettings } from '../../game/SettingsManager';
-import { setLocale, getLocale } from '../../i18n';
+import { setLocale } from '../../i18n';
 import { applyUpdate, checkForUpdate } from '../../update/appUpdate';
-import { getAuthState, peekAuthErrors, updateTheme } from '../../supabase';
-import { applyTheme, type Theme } from '../../theme/theme';
-import { subscribeAuth } from '../../supabase';
 
 /**
  * SettingsPage - Full page settings with all options
@@ -20,7 +17,6 @@ export class SettingsPage {
     private checkingUpdate: boolean = false;
     private updateError: string | null = null;
     private onVisibilityChange: (() => void) | null = null;
-    private unsubscribeAuth: (() => void) | null = null;
     private unsubscribeSettings: (() => void) | null = null;
 
     constructor(settingsManager: SettingsManager) {
@@ -41,18 +37,8 @@ export class SettingsPage {
         document.addEventListener('visibilitychange', handler);
         this.onVisibilityChange = () => document.removeEventListener('visibilitychange', handler);
 
-        this.unsubscribeAuth = subscribeAuth(() => {
-            // Avoid full re-render on auth/profile changes: it disrupts sliders/toggles mid-interaction
-            // and can look like settings "revert". We only need to keep the theme dropdown in sync.
-            const currentTheme: Theme = (getAuthState().profile?.theme === 'light' ? 'light' : 'dark');
-            const themeSelect = this.container.querySelector('#theme') as HTMLSelectElement | null;
-            if (themeSelect && themeSelect.value !== currentTheme) {
-                themeSelect.value = currentTheme;
-            }
-        });
-
         // Keep the UI in sync if settings change from outside this page
-        // (e.g., profile settings loaded from Supabase after sign-in).
+        // (e.g., other UI paths).
         this.unsubscribeSettings = this.settingsManager.subscribe(() => {
             this.syncControlsFromSettings();
         });
@@ -106,6 +92,8 @@ export class SettingsPage {
         setCheck('highContrast', settings.accessibility.highContrast);
         setCheck('reducedMotion', settings.accessibility.reducedMotion);
         setRange('fontScale', settings.accessibility.fontScale, '%');
+
+        setSelect('theme', settings.ui.theme);
     }
 
     private async checkUpdatesIfNeeded(): Promise<void> {
@@ -127,11 +115,7 @@ export class SettingsPage {
 
     private updateContent(): void {
         const settings = this.settingsManager.getSettings();
-        const currentTheme: Theme = (getAuthState().profile?.theme === 'light' ? 'light' : 'dark');
-        const auth = getAuthState();
-        const configured = auth.configured;
-        const signedIn = !!auth.user;
-        const lastErr = peekAuthErrors()[0]?.message || null;
+        const currentTheme = settings.ui.theme;
 
         this.container.innerHTML = `
             <div class="page-header page-header-split">
@@ -147,14 +131,6 @@ export class SettingsPage {
                         ${t('settings.reset')}
                     </button>
                 </div>
-            </div>
-
-            <div class="panel" style="max-width: 760px; margin: 0 auto 12px auto;">
-                <div class="panel-title">Cloud sync</div>
-                <div class="panel-text" id="cloudSyncStatus">
-                    ${!configured ? 'Supabase is not configured on this deployment.' : (signedIn ? 'Enabled (saving to your account).' : 'Sign in to enable cloud sync.')}
-                </div>
-                ${lastErr ? `<div class="panel-text" id="cloudSyncError" style="margin-top:8px; opacity:.9;">Last error: ${this.escapeHtml(lastErr)}</div>` : `<div id="cloudSyncError" hidden></div>`}
             </div>
 
             <div class="settings-tabs-container">
@@ -305,7 +281,6 @@ export class SettingsPage {
     }
 
     private renderGraphicsTab(settings: GameSettings): string {
-        const currentLocale = getLocale();
         return `
             <div class="settings-section">
                     <div class="setting-row">
@@ -345,8 +320,8 @@ export class SettingsPage {
                 <div class="setting-row">
                     <span class="setting-label">${t('settings.language')}</span>
                     <select class="setting-select" id="language">
-                        <option value="en" ${currentLocale === 'en' ? 'selected' : ''}>English</option>
-                        <option value="ar" ${currentLocale === 'ar' ? 'selected' : ''}>العربية</option>
+                        <option value="en" ${settings.accessibility.language === 'en' ? 'selected' : ''}>${t('settings.languageEnglish')}</option>
+                        <option value="ar" ${settings.accessibility.language === 'ar' ? 'selected' : ''}>${t('settings.languageArabic')}</option>
                     </select>
                 </div>
                 <div class="setting-row">
@@ -519,9 +494,8 @@ export class SettingsPage {
                 this.settingsManager.updateSettings({ accessibility: { ...settings.accessibility, fontScale: value as number } });
                 break;
             case 'theme': {
-                const theme = (value === 'light' ? 'light' : 'dark') as Theme;
-                applyTheme(theme);
-                void updateTheme(theme);
+                const theme = (value === 'light' ? 'light' : 'dark');
+                this.settingsManager.updateSettings({ ui: { ...settings.ui, theme } });
                 break;
             }
         }
@@ -574,7 +548,6 @@ export class SettingsPage {
     destroy(): void {
         this.unsubscribeLocale?.();
         this.onVisibilityChange?.();
-        this.unsubscribeAuth?.();
         this.unsubscribeSettings?.();
         if (this.savedHintTimeout) {
             window.clearTimeout(this.savedHintTimeout);

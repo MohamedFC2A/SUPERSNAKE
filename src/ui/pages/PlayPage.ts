@@ -1,4 +1,4 @@
-import { t, onLocaleChange } from '../../i18n';
+import { isRTL, t, onLocaleChange } from '../../i18n';
 import { Game } from '../../game/Game';
 import { SettingsManager } from '../../game/SettingsManager';
 import { getRouter } from '../../router';
@@ -11,6 +11,7 @@ import { Config } from '../../config';
 import { Vector2 } from '../../utils/utils';
 import { getDeferredInstallPrompt, isMobileLike, isStandaloneMode, promptInstallIfAvailable } from '../../pwa/install';
 import { getAuthState, submitGameSession, submitScore, subscribeAuth } from '../../supabase';
+import { getCookie, setCookie } from '../../utils/cookies';
 
 /**
  * PlayPage - Hosts the game canvas and controls
@@ -33,6 +34,7 @@ export class PlayPage {
     private isGameRunning: boolean = false;
     private isDestroyed: boolean = false;
     private installOverlayVisible: boolean = false;
+    private installDismissed: boolean = false;
 
     // Mobile control smoothing
     private controlSensitivity: number = 5;
@@ -96,6 +98,10 @@ export class PlayPage {
         });
     }
 
+    private backArrow(): string {
+        return isRTL() ? '→' : '←';
+    }
+
     /**
      * Show the "Enter your name" start screen
      */
@@ -114,6 +120,8 @@ export class PlayPage {
         this.lastPlayerName = (cloudName || this.lastPlayerName || 'Player').toString().slice(0, 20);
 
         const mobile = isMobileLike();
+        this.installDismissed = getCookie('supersnake_install_dismissed') === '1';
+        const showInstallCard = mobile && !isStandaloneMode() && !this.installDismissed;
 
         this.container.innerHTML = `
             <div class="play-start-screen">
@@ -121,23 +129,23 @@ export class PlayPage {
                     <h1 class="play-start-title">🐍 ${t('menu.title')}</h1>
                     <p class="play-start-subtitle">${t('menu.tagline')}</p>
 
-                    ${mobile ? `
+                    ${showInstallCard ? `
                         <div class="install-required-card">
-                            <div class="install-required-title">Install (optional)</div>
+                            <div class="install-required-title">${t('play.installCardTitle')}</div>
                             <div class="install-required-text">
-                                For the best mobile experience, you can install the game to your home screen.
+                                ${t('play.installCardText')}
                             </div>
                             <button class="btn btn-primary" id="openInstallGateBtn" type="button">
-                                Install
+                                ${t('play.installOpenButton')}
                             </button>
                             <div class="install-required-hint">
-                                iPhone/iPad: Share → Add to Home Screen
+                                ${t('play.installIosHintShort')}
                             </div>
                         </div>
                     ` : ''}
 
                     <div class="play-name-input-group">
-                        <div class="play-name-label">${t('profile.cloudTitle')}</div>
+                        <div class="play-name-label">${t('play.playerName')}</div>
                         <div class="play-name-input" style="pointer-events:none; user-select:none;">
                             ${this.escapeHtml(this.lastPlayerName)}
                         </div>
@@ -148,7 +156,7 @@ export class PlayPage {
                     </button>
                     
                     <button class="play-back-link" id="backToHome">
-                        ← ${t('nav.home')}
+                        ${this.backArrow()} ${t('nav.home')}
                     </button>
                 </div>
             </div>
@@ -198,7 +206,7 @@ export class PlayPage {
                 <canvas id="gameCanvas"></canvas>
                 <div id="ui-layer" class="play-ui-layer"></div>
                 <button class="play-back-btn" id="backToHome" aria-label="${t('nav.home')}">
-                    <span>←</span>
+                    <span>${this.backArrow()}</span>
                 </button>
             </div>
         `;
@@ -356,11 +364,11 @@ export class PlayPage {
         this.rotateOverlay = document.createElement('div');
         this.rotateOverlay.className = 'rotate-overlay hidden';
         this.rotateOverlay.innerHTML = `
-            <div class="rotate-card" role="dialog" aria-modal="true" aria-label="Rotate device">
+            <div class="rotate-card" role="dialog" aria-modal="true" aria-label="${t('play.rotateDialogLabel')}">
                 <div class="rotate-icon" aria-hidden="true">📱↻</div>
-                <div class="rotate-title">Rotate your device</div>
-                <div class="rotate-subtitle">Please switch to landscape to play</div>
-                <button class="btn btn-primary rotate-try" id="tryRotateBtn" type="button">Try again</button>
+                <div class="rotate-title">${t('play.rotateTitle')}</div>
+                <div class="rotate-subtitle">${t('play.rotateSubtitle')}</div>
+                <button class="btn btn-primary rotate-try" id="tryRotateBtn" type="button">${t('play.rotateTryAgain')}</button>
             </div>
         `;
         uiLayer.appendChild(this.rotateOverlay);
@@ -418,25 +426,25 @@ export class PlayPage {
     private renderInstallOverlay(): string {
         const hasPrompt = !!getDeferredInstallPrompt();
         return `
-            <div class="install-overlay" role="dialog" aria-modal="true" aria-label="Install">
+            <div class="install-overlay" role="dialog" aria-modal="true" aria-label="${t('play.installDialogLabel')}">
                 <div class="install-card">
                     <div class="install-icon" aria-hidden="true">⬇️📱</div>
-                    <div class="install-title">Install (optional)</div>
+                    <div class="install-title">${t('play.installTitle')}</div>
                     <div class="install-text">
-                        Install for faster loading, full-screen play, and a better mobile experience.
+                        ${t('play.installText')}
                     </div>
 
                     <div class="install-steps">
-                        <div class="install-step"><strong>Android:</strong> Tap “Install” when prompted, then open from your home screen.</div>
-                        <div class="install-step"><strong>iPhone/iPad:</strong> Share → “Add to Home Screen”, then open from the home screen.</div>
+                        <div class="install-step"><strong>${t('play.installAndroidTitle')}:</strong> ${t('play.installAndroidStep')}</div>
+                        <div class="install-step"><strong>${t('play.installIosTitle')}:</strong> ${t('play.installIosStep')}</div>
                     </div>
 
                     <div class="install-actions">
-                        <button class="btn btn-primary" id="installNowBtn" type="button" ${hasPrompt ? '' : 'disabled aria-disabled="true"'}>Install</button>
-                        <button class="btn btn-secondary" id="installCheckBtn" type="button">Done</button>
+                        <button class="btn btn-primary" id="installNowBtn" type="button" ${hasPrompt ? '' : 'disabled aria-disabled="true"'}>${t('play.installNow')}</button>
+                        <button class="btn btn-secondary" id="installCheckBtn" type="button">${t('play.installDone')}</button>
                     </div>
 
-                    <button class="install-close" id="installCloseBtn" type="button" aria-label="Close">×</button>
+                    <button class="install-close" id="installCloseBtn" type="button" aria-label="${t('play.installClose')}">×</button>
                 </div>
             </div>
         `;
@@ -452,12 +460,14 @@ export class PlayPage {
 
         const installCheckBtn = this.container.querySelector('#installCheckBtn');
         installCheckBtn?.addEventListener('click', () => {
+            setCookie('supersnake_install_dismissed', '1', { maxAgeSeconds: 60 * 60 * 24 * 30, path: '/', sameSite: 'Lax' });
             this.installOverlayVisible = false;
             this.showStartScreen();
         });
 
         const installCloseBtn = this.container.querySelector('#installCloseBtn');
         installCloseBtn?.addEventListener('click', () => {
+            setCookie('supersnake_install_dismissed', '1', { maxAgeSeconds: 60 * 60 * 24 * 30, path: '/', sameSite: 'Lax' });
             this.installOverlayVisible = false;
             this.showStartScreen();
         });

@@ -120,8 +120,7 @@ export class ProfilePage {
                     <div class="panel panel-warning">
                         <div class="panel-title">${t('profile.signInErrorTitle')}</div>
                         <div class="panel-text">
-                            Session storage is blocked in this browser/context. Google sign-in cannot finish (PKCE needs temporary storage).
-                            Disable private mode / strict tracking protection for this site, then try again.
+                            ${t('profile.sessionStorageBlocked')}
                         </div>
                     </div>
                 ` : ''}
@@ -236,7 +235,7 @@ export class ProfilePage {
             const report = JSON.stringify(getAuthDebugSnapshot(), null, 2);
             try {
                 await navigator.clipboard.writeText(report);
-                this.authError = 'Copied debug report to clipboard.';
+                this.authError = t('profile.debugCopied');
             } catch {
                 // Fallback
                 try {
@@ -249,9 +248,9 @@ export class ProfilePage {
                     ta.select();
                     document.execCommand('copy');
                     document.body.removeChild(ta);
-                    this.authError = 'Copied debug report to clipboard.';
+                    this.authError = t('profile.debugCopied');
                 } catch {
-                    this.authError = 'Failed to copy debug report.';
+                    this.authError = t('profile.debugCopyFailed');
                 }
             }
             this.updateContent();
@@ -260,7 +259,8 @@ export class ProfilePage {
         const refreshBtn = this.container.querySelector('#forceRefreshSessionBtn');
         refreshBtn?.addEventListener('click', async () => {
             await refreshSession();
-            this.authError = takeAuthError() || `Session refresh attempted at ${new Date().toLocaleTimeString()}`;
+            this.authError =
+                takeAuthError() || t('profile.sessionRefreshAttempted', { time: new Date().toLocaleTimeString() });
             this.updateContent();
         });
     }
