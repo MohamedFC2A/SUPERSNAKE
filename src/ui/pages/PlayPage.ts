@@ -544,13 +544,21 @@ export class PlayPage {
             const target = this.touchActive ? this.touchPos.subtract(screenCenter) : Vector2.zero();
             const dist = target.magnitude();
             const mag = this.touchActive ? Math.max(0, Math.min(1, (dist - 20) / 240)) : 0;
-            if (this.touchActive && dist > 20) {
+            if (!this.touchActive) {
+                // Immediate stop on release (feels responsive on mobile).
+                this.smoothedJoystick = Vector2.zero();
+                this.game.getInput().setExternalJoystick(Vector2.zero(), false);
+                this.game.getInput().setExternalBoostPressed(this.boostLocked);
+                return;
+            }
+
+            if (dist > 20) {
                 this.smoothedJoystick = this.smoothedJoystick.lerp(target.normalize(), follow);
             } else {
                 this.smoothedJoystick = this.smoothedJoystick.lerp(Vector2.zero(), release);
             }
 
-            const active = this.touchActive && mag > 0.02 && this.smoothedJoystick.magnitude() > 0.08;
+            const active = mag > 0.02;
             const finalDir = active ? this.smoothedJoystick.multiply(mag) : Vector2.zero();
             this.game.getInput().setExternalJoystick(finalDir, active);
             this.game.getInput().setExternalBoostPressed(this.boostLocked);
@@ -570,13 +578,16 @@ export class PlayPage {
             const state = this.joystick.getState();
             const target = new Vector2(state.direction.x, state.direction.y);
 
-            if (state.active && state.magnitude > 0.06 && target.magnitude() > 0) {
+            if (!state.active || state.magnitude <= 0.01) {
+                this.smoothedJoystick = Vector2.zero();
+                this.game.getInput().setExternalJoystick(Vector2.zero(), false);
+            } else if (state.magnitude > 0.06 && target.magnitude() > 0) {
                 this.smoothedJoystick = this.smoothedJoystick.lerp(target.normalize(), follow);
             } else {
                 this.smoothedJoystick = this.smoothedJoystick.lerp(Vector2.zero(), release);
             }
 
-            const active = state.active && state.magnitude > 0.02 && this.smoothedJoystick.magnitude() > 0.08;
+            const active = state.active && state.magnitude > 0.02;
             const finalDir = active ? this.smoothedJoystick.multiply(state.magnitude) : Vector2.zero();
             this.game.getInput().setExternalJoystick(finalDir, active);
         }
@@ -640,6 +651,7 @@ export class PlayPage {
 
         const onPointerDown = (e: PointerEvent) => {
             if (!this.canvas) return;
+            if (e.pointerType !== 'touch') return;
             // Double-tap toggles continuous boost
             const now = performance.now();
             if (now - this.lastTapMs < 280) {
@@ -664,12 +676,16 @@ export class PlayPage {
             if (this.touchPointerId !== e.pointerId) return;
             this.touchActive = false;
             this.touchPointerId = null;
+            this.smoothedJoystick = Vector2.zero();
+            this.game?.getInput().setExternalJoystick(Vector2.zero(), false);
         };
 
         const onPointerCancel = (e: PointerEvent) => {
             if (this.touchPointerId !== e.pointerId) return;
             this.touchActive = false;
             this.touchPointerId = null;
+            this.smoothedJoystick = Vector2.zero();
+            this.game?.getInput().setExternalJoystick(Vector2.zero(), false);
         };
 
         this.touchHandlers = { onPointerDown, onPointerMove, onPointerUp, onPointerCancel };

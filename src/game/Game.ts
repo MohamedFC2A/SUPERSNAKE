@@ -248,6 +248,16 @@ export class Game {
         // Update player
         this.player.update(dt);
 
+        // Tempo follows real speed (subtle). Uses post-update velocity so boosts/pickups are included.
+        const dtSec = dt / 1000;
+        if (dtSec > 0) {
+            const speedPerSec = this.player.velocity.magnitude() / dtSec;
+            const speedFactor = speedPerSec / Config.SNAKE_BASE_SPEED;
+            getMusicManager().setSpeedFactor(speedFactor);
+        } else {
+            getMusicManager().setSpeedFactor(1);
+        }
+
         // Boost particles
         if (this.particlesEnabled && this.player.isBoosting) {
             const tailPos = this.player.segments[this.player.segments.length - 1].position;

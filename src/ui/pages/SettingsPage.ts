@@ -44,6 +44,18 @@ export class SettingsPage {
         });
     }
 
+    private isTouchDevice(): boolean {
+        try {
+            return (
+                (typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches) ||
+                'ontouchstart' in window ||
+                navigator.maxTouchPoints > 0
+            );
+        } catch {
+            return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        }
+    }
+
     private syncControlsFromSettings(): void {
         const settings = this.settingsManager.getSettings();
         const active = document.activeElement as HTMLElement | null;
@@ -255,8 +267,25 @@ export class SettingsPage {
     }
 
     private renderControlsTab(settings: GameSettings): string {
+        const isTouch = this.isTouchDevice();
+
+        if (!isTouch) {
+            return `
+                <div class="settings-section">
+                    <div class="panel">
+                        <div class="panel-title">${t('settings.desktopControlsTitle')}</div>
+                        <div class="panel-text">${t('settings.desktopControlsText')}</div>
+                    </div>
+                </div>
+            `;
+        }
+
         return `
             <div class="settings-section">
+                <div class="panel" style="margin-bottom: 12px;">
+                    <div class="panel-title">${t('settings.mobileControlsTitle')}</div>
+                    <div class="panel-text">${t('settings.mobileControlsText')}</div>
+                </div>
                 <div class="setting-row">
                     <span class="setting-label">${t('settings.mobileControlMode')}</span>
                     <select class="setting-select" id="mobileControlMode">

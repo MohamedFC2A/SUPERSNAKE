@@ -1291,13 +1291,14 @@ select:focus-visible {
 .joystick-container {
   position: absolute;
   bottom: calc(var(--touch-pad) + env(safe-area-inset-bottom));
-  inset-inline-start: calc(var(--touch-pad) + env(safe-area-inset-left));
+  left: calc(var(--touch-pad) + env(safe-area-inset-left));
+  right: auto;
   pointer-events: auto;
 }
 
 .joystick-container.right {
-  inset-inline-start: auto;
-  inset-inline-end: calc(var(--touch-pad) + env(safe-area-inset-right));
+  left: auto;
+  right: calc(var(--touch-pad) + env(safe-area-inset-right));
 }
 
 .joystick-base {
@@ -1342,14 +1343,15 @@ select:focus-visible {
 .boost-button-container {
   position: absolute;
   bottom: calc(var(--touch-pad) + env(safe-area-inset-bottom));
-  inset-inline-end: calc(var(--touch-pad) + env(safe-area-inset-right));
+  right: calc(var(--touch-pad) + env(safe-area-inset-right));
+  left: auto;
   pointer-events: auto;
   z-index: 60;
 }
 
 .boost-button-container.left {
-  inset-inline-end: auto;
-  inset-inline-start: calc(var(--touch-pad) + env(safe-area-inset-left));
+  right: auto;
+  left: calc(var(--touch-pad) + env(safe-area-inset-left));
 }
 
 .boost-charge-ring {
@@ -1427,8 +1429,8 @@ select:focus-visible {
 
 /* If joystick is on the right, move boost to the left (legacy support) */
 .joystick-container.right~.boost-button-container {
-  inset-inline-end: auto;
-  inset-inline-start: calc(var(--touch-pad) + env(safe-area-inset-left));
+  right: auto;
+  left: calc(var(--touch-pad) + env(safe-area-inset-left));
 }
 
 /* ===== Rotate Overlay (force landscape on mobile) ===== */

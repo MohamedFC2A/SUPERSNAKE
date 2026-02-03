@@ -21,6 +21,15 @@ export interface MusicConfig {
     smoothingFactor: number;
     /** Minimum activity duration (ms) before volume increases */
     hysteresis: number;
+
+    /** Minimum playback rate */
+    minPlaybackRate: number;
+    /** Maximum playback rate */
+    maxPlaybackRate: number;
+    /** Playback rate speed-up smoothing */
+    playbackRateUpSpeed: number;
+    /** Playback rate slow-down smoothing */
+    playbackRateDownSpeed: number;
 }
 
 const DEFAULT_CONFIG: MusicConfig = {
@@ -31,6 +40,12 @@ const DEFAULT_CONFIG: MusicConfig = {
     fadeOutSpeed: 0.55,
     smoothingFactor: 3.0,
     hysteresis: 180,
+
+    // Subtle tempo shift (never chipmunk-y)
+    minPlaybackRate: 1.0,
+    maxPlaybackRate: 1.18,
+    playbackRateUpSpeed: 2.4,
+    playbackRateDownSpeed: 1.6,
 };
 
 export class MusicManager {
@@ -47,6 +62,10 @@ export class MusicManager {
     // Activity tracking (for hysteresis)
     private activityStartTime: number = 0;
     private isActive: boolean = false;
+
+    // Playback rate state (tempo responds to speed)
+    private currentPlaybackRate: number = 1.0;
+    private targetPlaybackRate: number = 1.0;
 
     // Master settings
     private isEnabled: boolean = true;
@@ -73,6 +92,7 @@ export class MusicManager {
         this.audio = new Audio('/song.mp3');
         this.audio.loop = true;
         this.audio.volume = 0;
+        this.audio.playbackRate = 1.0;
         this.audio.preload = 'auto';
 
         // Handle loading errors gracefully
@@ -84,6 +104,11 @@ export class MusicManager {
     private clampUnit(value: number): number {
         if (!Number.isFinite(value)) return 0;
         return Math.max(0, Math.min(1, value));
+    }
+
+    private clampFinite(value: number, min: number, max: number): number {
+        if (!Number.isFinite(value)) return min;
+        return Math.max(min, Math.min(max, value));
     }
 
     private clampPercentToUnit(value: number): number {
@@ -132,6 +157,9 @@ export class MusicManager {
         this.targetVolume = 0;
         this.smoothedIntensity = 0;
         this.isActive = false;
+        this.currentPlaybackRate = 1.0;
+        this.targetPlaybackRate = 1.0;
+        this.applyPlaybackRate();
     }
 
     /**
@@ -171,6 +199,24 @@ export class MusicManager {
         } else {
             this.targetVolume = 0;
         }
+    }
+
+    /**
+     * Set speed factor (e.g. currentSpeed / baseSpeed).
+     * Higher speed => slightly faster tempo.
+     */
+    setSpeedFactor(speedFactor: number): void {
+        if (!Number.isFinite(speedFactor)) return;
+
+        // Clamp to a reasonable range (handles powerups/edge-cases)
+        const clamped = Math.max(0.5, Math.min(3.0, speedFactor));
+
+        // Map [1..2.5] => [0..1]
+        const normalized = Math.max(0, Math.min(1, (clamped - 1.0) / 1.5));
+
+        // Subtle curve for musical feel.
+        const rate = this.config.minPlaybackRate + (this.config.maxPlaybackRate - this.config.minPlaybackRate) * Math.sqrt(normalized);
+        this.targetPlaybackRate = this.clampFinite(rate, this.config.minPlaybackRate, this.config.maxPlaybackRate);
     }
 
     /**
@@ -257,6 +303,7 @@ export class MusicManager {
 
         // Clamp and apply
         this.currentVolume = Math.max(0, Math.min(1, this.currentVolume));
+        this.updatePlaybackRate(dt);
         this.applyVolume();
 
         // If volume is zero and target is zero, pause audio to save CPU
@@ -269,6 +316,27 @@ export class MusicManager {
         if (this.currentVolume > 0 && this.audio.paused && this.isEnabled) {
             this.audio.play().catch(() => { });
         }
+    }
+
+    private updatePlaybackRate(dt: number): void {
+        if (!this.audio) return;
+
+        const diff = this.targetPlaybackRate - this.currentPlaybackRate;
+        const speed = diff >= 0 ? this.config.playbackRateUpSpeed : this.config.playbackRateDownSpeed;
+
+        if (Math.abs(diff) < 0.001) {
+            this.currentPlaybackRate = this.targetPlaybackRate;
+        } else {
+            this.currentPlaybackRate += diff * speed * dt;
+        }
+
+        this.currentPlaybackRate = Math.max(this.config.minPlaybackRate, Math.min(this.config.maxPlaybackRate, this.currentPlaybackRate));
+        this.applyPlaybackRate();
+    }
+
+    private applyPlaybackRate(): void {
+        if (!this.audio) return;
+        this.audio.playbackRate = this.clampFinite(this.currentPlaybackRate, this.config.minPlaybackRate, this.config.maxPlaybackRate);
     }
 
     private applyVolume(): void {
