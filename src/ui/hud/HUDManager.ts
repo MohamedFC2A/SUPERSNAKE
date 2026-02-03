@@ -1,5 +1,6 @@
 /**
  * HUD Manager - Orchestrates all in-game HUD components
+ * Enhanced with in-game FPS display and performance metrics
  */
 
 import { t, onLocaleChange } from '../../i18n';
@@ -10,6 +11,9 @@ export interface HUDData {
     rank: number;
     boostCharge: number;
     maxBoost: number;
+    fps?: number;
+    deviceTier?: string;
+    quality?: string;
 }
 
 export class HUDManager {
@@ -19,11 +23,15 @@ export class HUDManager {
     private rankEl: HTMLElement | null = null;
     private boostBar: HTMLElement | null = null;
     private boostFill: HTMLElement | null = null;
+    private fpsEl: HTMLElement | null = null;
+    private fpsBarEl: HTMLElement | null = null;
+    private deviceTierEl: HTMLElement | null = null;
     private boostWasReady: boolean = true;
 
-    private lastData: HUDData = { score: 0, mass: 0, rank: 1, boostCharge: 100, maxBoost: 100 };
+    private lastData: HUDData = { score: 0, mass: 0, rank: 1, boostCharge: 100, maxBoost: 100, fps: 60 };
     private isVisible: boolean = false;
     private unsubscribeLocale: (() => void) | null = null;
+    private fpsUpdateQueued: boolean = false;
 
     constructor() {
         this.container = document.createElement('div');
@@ -54,6 +62,19 @@ export class HUDManager {
                     <span class="hud-value" id="hudRank">#1</span>
                 </div>
             </div>
+            
+            <!-- In-Game FPS Display -->
+            <div class="hud-fps" id="hudFps">
+                <div class="hud-fps-inner">
+                    <span class="hud-fps-value" id="hudFpsValue">60</span>
+                    <span class="hud-fps-label">FPS</span>
+                    <div class="hud-fps-bar-container">
+                        <div class="hud-fps-bar" id="hudFpsBar"></div>
+                    </div>
+                </div>
+                <div class="hud-device-tier" id="hudDeviceTier"></div>
+            </div>
+            
             <div class="boost-bar" id="boostBar">
                 <div class="boost-bar-bg"></div>
                 <div class="boost-fill" id="boostFill"></div>
@@ -66,6 +87,9 @@ export class HUDManager {
         this.rankEl = this.container.querySelector('#hudRank');
         this.boostBar = this.container.querySelector('#boostBar');
         this.boostFill = this.container.querySelector('#boostFill');
+        this.fpsEl = this.container.querySelector('#hudFpsValue');
+        this.fpsBarEl = this.container.querySelector('#hudFpsBar');
+        this.deviceTierEl = this.container.querySelector('#hudDeviceTier');
     }
 
     getElement(): HTMLElement {
@@ -99,6 +123,15 @@ export class HUDManager {
             this.rankEl.textContent = `#${data.rank}`;
         }
 
+        // Update FPS display (throttled)
+        if (data.fps !== undefined && !this.fpsUpdateQueued) {
+            this.fpsUpdateQueued = true;
+            requestAnimationFrame(() => {
+                this.updateFpsDisplay(data.fps!, data.deviceTier, data.quality);
+                this.fpsUpdateQueued = false;
+            });
+        }
+
         if (this.boostFill && (data.boostCharge !== undefined || data.maxBoost !== undefined)) {
             const percent = this.lastData.maxBoost > 0 ? (this.lastData.boostCharge / this.lastData.maxBoost) * 100 : 0;
             this.boostFill.style.width = `${percent}%`;
@@ -118,6 +151,40 @@ export class HUDManager {
                 if (percent <= 18) this.boostBar?.classList.add('boost-low');
                 else this.boostBar?.classList.remove('boost-low');
             }
+        }
+    }
+
+    private updateFpsDisplay(fps: number, tier?: string, quality?: string): void {
+        if (!this.fpsEl || !this.fpsBarEl) return;
+
+        // Color based on FPS performance
+        let color = '#22C55E'; // Green
+        let glowColor = 'rgba(34, 197, 94, 0.8)';
+        let barWidth = Math.min(100, (fps / 60) * 100);
+
+        if (fps < 30) {
+            color = '#EF4444'; // Red
+            glowColor = 'rgba(239, 68, 68, 0.8)';
+        } else if (fps < 50) {
+            color = '#F59E0B'; // Yellow
+            glowColor = 'rgba(245, 158, 11, 0.8)';
+        }
+
+        this.fpsEl.textContent = fps.toString();
+        this.fpsEl.style.color = color;
+        this.fpsEl.style.textShadow = `0 0 10px ${glowColor}`;
+        
+        this.fpsBarEl.style.width = `${barWidth}%`;
+        this.fpsBarEl.style.background = `linear-gradient(90deg, ${color}, ${glowColor})`;
+        this.fpsBarEl.style.boxShadow = `0 0 10px ${glowColor}`;
+
+        // Update device tier display
+        if (this.deviceTierEl && tier) {
+            const qualityEmoji = quality === 'ultra' ? '🔥' : 
+                               quality === 'high' ? '⚡' : 
+                               quality === 'medium' ? '✓' : 
+                               quality === 'low' ? '▼' : '⏬';
+            this.deviceTierEl.textContent = `${tier.toUpperCase()} ${qualityEmoji}`;
         }
     }
 
