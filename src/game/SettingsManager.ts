@@ -129,7 +129,9 @@ export class SettingsManager {
             }
 
             const normalized = this.normalizeSettings(parsed.settings);
-            return this.mergeSettings(DEFAULT_SETTINGS, normalized as any);
+            const merged = this.mergeSettings(DEFAULT_SETTINGS, normalized as any);
+            this.applyQualityPresetToGraphics(merged);
+            return merged;
         } catch {
             // Corrupted cookie: ignore and reset to defaults.
             try {
@@ -173,17 +175,38 @@ export class SettingsManager {
         const lowEnd = (typeof mem === 'number' && mem > 0 && mem <= 4) || (typeof cores === 'number' && cores > 0 && cores <= 4) || minDim < 720;
 
         if (isTouch) {
-            // Mobile: avoid excessive DPR (costly) on high-DPI screens.
-            s.graphics.quality = lowEnd ? 'medium' : 'high';
-            s.graphics.showMinimap = minDim >= 740;
+            // Mobile: default to MED for stable FPS (user can opt into higher).
+            s.graphics.quality = 'medium';
         } else {
             const strong = (typeof mem === 'number' && mem >= 8) || (typeof cores === 'number' && cores >= 8);
             // Desktop: ultra by default; super-ultra only for strong hardware and not-too-high DPR.
             s.graphics.quality = strong && dpr >= 2 ? 'super_ultra' : 'ultra';
-            s.graphics.showMinimap = true;
         }
 
+        // Apply preset-derived toggles so the UI is minimal and performance is consistent.
+        this.applyQualityPresetToGraphics(s);
+
         return s;
+    }
+
+    private applyQualityPresetToGraphics(settings: GameSettings): void {
+        const q = settings.graphics.quality;
+        if (q === 'medium' || q === 'low') {
+            settings.graphics.particles = false;
+            settings.graphics.showGrid = false;
+            settings.graphics.showMinimap = false;
+            return;
+        }
+        if (q === 'high') {
+            settings.graphics.particles = true;
+            settings.graphics.showGrid = false;
+            settings.graphics.showMinimap = true;
+            return;
+        }
+        // ultra / super_ultra
+        settings.graphics.particles = true;
+        settings.graphics.showGrid = true;
+        settings.graphics.showMinimap = true;
     }
 
     private persistDefaults(settings: GameSettings): void {
@@ -342,7 +365,9 @@ export class SettingsManager {
     applyRemoteSettings(remote: unknown): void {
         if (!remote || typeof remote !== 'object') return;
         const normalized = this.normalizeSettings(remote);
-        this.settings = this.mergeSettings(DEFAULT_SETTINGS, normalized as any);
+        const next = this.mergeSettings(DEFAULT_SETTINGS, normalized as any);
+        this.applyQualityPresetToGraphics(next);
+        this.settings = next;
         this.saveSettings();
         this.applySettings();
         this.notifyListeners();
@@ -351,14 +376,18 @@ export class SettingsManager {
     updateSettings(partial: DeepPartial<GameSettings>): void {
         const merged = this.mergeSettings(this.settings, partial);
         const normalized = this.normalizeSettings(merged);
-        this.settings = this.mergeSettings(DEFAULT_SETTINGS, normalized as any);
+        const next = this.mergeSettings(DEFAULT_SETTINGS, normalized as any);
+        this.applyQualityPresetToGraphics(next);
+        this.settings = next;
         this.saveSettings();
         this.applySettings();
         this.notifyListeners();
     }
 
     resetSettings(): void {
-        this.settings = this.cloneSettings(DEFAULT_SETTINGS);
+        const next = this.cloneSettings(DEFAULT_SETTINGS);
+        this.applyQualityPresetToGraphics(next);
+        this.settings = next;
         this.saveSettings();
         this.applySettings();
         this.notifyListeners();

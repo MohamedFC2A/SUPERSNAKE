@@ -44,8 +44,9 @@ export class CollisionSystem {
     /**
      * Register a snake in the grid
      */
-    public registerSnake(snake: Snake): void {
+    public registerSnake(snake: Snake, segmentStep: number = 1): void {
         if (!snake.isAlive) return;
+        const step = Math.max(1, Math.floor(Number.isFinite(segmentStep) ? segmentStep : 1));
 
         // Register head
         const headKey = this.getCellKey(snake.position.x, snake.position.y);
@@ -53,7 +54,8 @@ export class CollisionSystem {
 
         // Register body segments in relevant cells
         const registeredCells = new Set<string>([headKey]);
-        for (const segment of snake.segments) {
+        for (let i = 0; i < snake.segments.length; i += step) {
+            const segment = snake.segments[i];
             const key = this.getCellKey(segment.position.x, segment.position.y);
             if (!registeredCells.has(key)) {
                 this.getCell(key).snakes.push(snake);
@@ -117,6 +119,32 @@ export class CollisionSystem {
     }
 
     /**
+     * Get foods inside an axis-aligned bounding box (world coordinates).
+     * Used for render culling to avoid iterating every food each frame.
+     */
+    public getFoodsInAABB(minX: number, minY: number, maxX: number, maxY: number): Food[] {
+        const foods: Food[] = [];
+
+        const cellMinX = Math.floor(minX / this.cellSize);
+        const cellMaxX = Math.floor(maxX / this.cellSize);
+        const cellMinY = Math.floor(minY / this.cellSize);
+        const cellMaxY = Math.floor(maxY / this.cellSize);
+
+        for (let cx = cellMinX; cx <= cellMaxX; cx++) {
+            for (let cy = cellMinY; cy <= cellMaxY; cy++) {
+                const key = `${cx},${cy}`;
+                const cell = this.grid.get(key);
+                if (!cell) continue;
+                for (const f of cell.foods) {
+                    if (!f.isConsumed) foods.push(f);
+                }
+            }
+        }
+
+        return foods;
+    }
+
+    /**
      * Check snake-food collisions
      */
     public checkFoodCollisions(snake: Snake): Food[] {
@@ -157,8 +185,9 @@ export class CollisionSystem {
      * Check snake-snake collisions
      * Returns the snake that was hit (if head hits body) or null
      */
-    public checkSnakeCollisions(snake: Snake, allSnakes: Snake[]): { victim: Snake; killer: Snake } | null {
+    public checkSnakeCollisions(snake: Snake, allSnakes: Snake[], otherSegmentStep: number = 1): { victim: Snake; killer: Snake } | null {
         if (!snake.isAlive) return null;
+        const step = Math.max(1, Math.floor(Number.isFinite(otherSegmentStep) ? otherSegmentStep : 1));
 
         const nearbySnakes = this.getNearbySnakes(snake.position);
 
@@ -166,7 +195,7 @@ export class CollisionSystem {
             if (other.id === snake.id || !other.isAlive) continue;
 
             // Check if snake's head hits other's body
-            for (let i = 1; i < other.segments.length; i++) {
+            for (let i = 1; i < other.segments.length; i += step) {
                 const segment = other.segments[i];
                 const distance = snake.position.distance(segment.position);
 

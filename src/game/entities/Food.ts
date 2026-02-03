@@ -142,6 +142,7 @@ export class FoodManager {
     private nextId: number = 0;
     private activeCache: Food[] | null = null;
     private targetCount: number = Config.FOOD_COUNT;
+    private animationEnabled: boolean = true;
 
     /**
      * Initialize with starting food
@@ -159,6 +160,10 @@ export class FoodManager {
         this.targetCount = next;
         this.trimToTarget();
         this.activeCache = null;
+    }
+
+    public setAnimationEnabled(enabled: boolean): void {
+        this.animationEnabled = !!enabled;
     }
 
     public getTargetCount(): number {
@@ -257,6 +262,7 @@ export class FoodManager {
      * Update all food
      */
     public update(dt: number): void {
+        if (!this.animationEnabled) return;
         this.foods.forEach(food => food.update(dt));
     }
 

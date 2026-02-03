@@ -258,7 +258,11 @@ export class Snake {
     public render(ctx: CanvasRenderingContext2D, options?: RenderOptions): void {
         if (!this.isAlive) return;
         const glowEnabled = options?.glowEnabled === true;
+        const q = options?.quality ?? 'high';
+        const fast = q === 'medium' || q === 'low';
+        const ultra = q === 'ultra' || q === 'super_ultra';
         const ice = options?.ice === true;
+        const iceDetailed = ice && ultra; // expensive gradients only on higher presets
 
         const mixWithWhite = (hex: string, amount: number, alpha: number): string => {
             const rgb = ColorUtils.hexToRgb(hex);
@@ -271,17 +275,18 @@ export class Snake {
         };
         const primary = this.palette.primary;
         const secondary = this.palette.secondary;
-        const iceFill0 = ice ? mixWithWhite(primary, 0.70, 0.95) : '';
-        const iceFill1 = ice ? mixWithWhite(primary, 0.15, 0.98) : '';
-        const iceFill2 = ice ? mixWithWhite(secondary, 0.05, 0.98) : '';
+        const iceFill0 = iceDetailed ? mixWithWhite(primary, 0.70, 0.95) : '';
+        const iceFill1 = iceDetailed ? mixWithWhite(primary, 0.15, 0.98) : '';
+        const iceFill2 = iceDetailed ? mixWithWhite(secondary, 0.05, 0.98) : '';
 
         // Draw segments from tail to head
-        for (let i = this.segments.length - 1; i >= 0; i--) {
+        const step = fast ? (this.isPlayer ? 1 : 2) : 1;
+        for (let i = this.segments.length - 1; i >= 0; i -= step) {
             const segment = this.segments[i];
             const radius = segment.radius;
 
             // Base fill
-            if (ice) {
+            if (iceDetailed) {
                 const g = ctx.createRadialGradient(
                     segment.position.x - radius * 0.25,
                     segment.position.y - radius * 0.25,
@@ -295,7 +300,12 @@ export class Snake {
                 g.addColorStop(1, iceFill2);
                 ctx.fillStyle = g;
             } else {
-                ctx.fillStyle = i === 0 ? primary : secondary;
+                // Ice in fast presets uses a single, cheap fill.
+                if (ice) {
+                    ctx.fillStyle = i === 0 ? primary : secondary;
+                } else {
+                    ctx.fillStyle = i === 0 ? primary : secondary;
+                }
             }
 
             // Add glow to head
@@ -313,7 +323,7 @@ export class Snake {
             ctx.fill();
 
             // Ice rim light
-            if (ice) {
+            if (iceDetailed) {
                 ctx.lineWidth = 1;
                 ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
                 ctx.stroke();
@@ -326,7 +336,7 @@ export class Snake {
                 this.drawEyes(ctx);
 
                 // Small head highlight (ice sparkle)
-                if (ice) {
+                if (iceDetailed) {
                     const hx = this.position.x + this.direction.x * this.headRadius * 0.15;
                     const hy = this.position.y + this.direction.y * this.headRadius * 0.15;
                     ctx.beginPath();
@@ -338,7 +348,7 @@ export class Snake {
         }
 
         // Draw name above head
-        if (!this.isPlayer) {
+        if (!this.isPlayer && !fast) {
             ctx.font = '12px Rajdhani';
             ctx.textAlign = 'center';
 

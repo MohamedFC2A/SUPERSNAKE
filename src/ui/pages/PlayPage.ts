@@ -923,6 +923,7 @@ export class PlayPage {
     }
 
     private updateMiniMap(): void {
+        if (document.documentElement.classList.contains('hide-minimap')) return;
         const player = this.game?.getPlayer();
         if (!player || !this.miniMap) return;
 

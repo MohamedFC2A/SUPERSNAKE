@@ -39,7 +39,9 @@ export class Renderer {
 
     constructor(canvas: HTMLCanvasElement) {
         this.canvas = canvas;
-        this.ctx = canvas.getContext('2d')!;
+        // Prefer a faster, opaque canvas on mobile.
+        const fastCtx = canvas.getContext('2d', { alpha: false, desynchronized: true } as any) as CanvasRenderingContext2D | null;
+        this.ctx = fastCtx || canvas.getContext('2d')!;
         this.resize();
     }
 

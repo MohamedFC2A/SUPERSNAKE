@@ -108,9 +108,7 @@ export class SettingsPage {
 
         setSelect('quality', settings.graphics.quality);
         setPerfButtons(settings.graphics.quality);
-        setCheck('particles', settings.graphics.particles);
-        setCheck('showGrid', settings.graphics.showGrid);
-        setCheck('showMinimap', settings.graphics.showMinimap);
+        // Graphics toggles are auto-driven by the performance preset for consistent FPS.
 
         setSelect('language', settings.accessibility.language);
         setSelect('colorblindMode', settings.accessibility.colorblindMode);
@@ -348,27 +346,6 @@ export class SettingsPage {
                             <button class="perf-btn${settings.graphics.quality === 'super_ultra' ? ' active' : ''}" type="button" data-setting="quality" data-value="super_ultra" aria-pressed="${settings.graphics.quality === 'super_ultra'}">${t('settings.perfSuperUltra')}</button>
                         </div>
                     </div>
-                <div class="setting-row">
-                    <span class="setting-label">${t('settings.particles')}</span>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="particles" ${settings.graphics.particles ? 'checked' : ''}>
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
-                <div class="setting-row">
-                    <span class="setting-label">${t('settings.showGrid')}</span>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="showGrid" ${settings.graphics.showGrid ? 'checked' : ''}>
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
-                <div class="setting-row">
-                    <span class="setting-label">${t('settings.showMinimap')}</span>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="showMinimap" ${settings.graphics.showMinimap ? 'checked' : ''}>
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
             </div>
 
             <div class="settings-section">
@@ -545,15 +522,6 @@ export class SettingsPage {
             // Graphics
             case 'quality':
                 this.settingsManager.updateSettings({ graphics: { ...settings.graphics, quality: value as 'medium' | 'high' | 'ultra' | 'super_ultra' } });
-                break;
-            case 'particles':
-                this.settingsManager.updateSettings({ graphics: { ...settings.graphics, particles: value as boolean } });
-                break;
-            case 'showGrid':
-                this.settingsManager.updateSettings({ graphics: { ...settings.graphics, showGrid: value as boolean } });
-                break;
-            case 'showMinimap':
-                this.settingsManager.updateSettings({ graphics: { ...settings.graphics, showMinimap: value as boolean } });
                 break;
 
             // Accessibility

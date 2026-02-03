@@ -15,6 +15,7 @@ export class GameLoop {
     private lastTime: number = 0;
     private accumulatedTime: number = 0;
     private readonly FIXED_TIMESTEP: number = 1000 / 60;
+    private readonly MAX_UPDATES_PER_FRAME: number = 2;
     private isRunning: boolean = false;
     private animationFrameId: number = 0;
 
@@ -77,6 +78,11 @@ export class GameLoop {
         const updateStart = performance.now();
         let updates = 0;
         while (this.accumulatedTime >= this.FIXED_TIMESTEP) {
+            if (updates >= this.MAX_UPDATES_PER_FRAME) {
+                // Drop the rest. Prevents "catch-up" spirals that feel like the game froze on mobile.
+                this.accumulatedTime = 0;
+                break;
+            }
             if (this.updateCallback) {
                 this.updateCallback(this.FIXED_TIMESTEP);
             }

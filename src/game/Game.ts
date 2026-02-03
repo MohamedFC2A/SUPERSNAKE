@@ -86,6 +86,9 @@ export class Game {
         let particleIntensity = 1;
         let botCount: number = Config.BOT_COUNT;
         let foodCount: number = Config.FOOD_COUNT;
+        let foodAnimation = true;
+        let minimapVisible = true;
+        let gridVisible = true;
 
         switch (this.graphicsQuality) {
             case 'low':
@@ -93,32 +96,58 @@ export class Game {
                 desiredPixelRatio = Math.min(1.25, dpr);
                 particleIntensity = 0.60;
                 botCount = 12;
-                foodCount = 420;
+                foodCount = 240;
+                foodAnimation = false;
+                minimapVisible = false;
+                gridVisible = false;
                 break;
             case 'medium':
                 desiredPixelRatio = Math.min(1.25, dpr);
                 particleIntensity = 0.60;
                 botCount = 12;
-                foodCount = 420;
+                foodCount = 240;
+                foodAnimation = false;
+                minimapVisible = false;
+                gridVisible = false;
                 break;
             case 'high':
                 desiredPixelRatio = Math.min(2, dpr);
                 particleIntensity = 1.0;
                 botCount = Config.BOT_COUNT;
-                foodCount = Config.FOOD_COUNT;
+                foodCount = 320;
+                minimapVisible = true;
+                gridVisible = false;
                 break;
             case 'ultra':
                 desiredPixelRatio = Math.min(2.5, dpr);
                 particleIntensity = 1.15;
                 botCount = 16;
-                foodCount = 560;
+                foodCount = 450;
+                minimapVisible = true;
+                gridVisible = true;
                 break;
             case 'super_ultra':
                 desiredPixelRatio = Math.min(3, dpr);
                 particleIntensity = 1.35;
                 botCount = 18;
-                foodCount = 650;
+                foodCount = 520;
+                minimapVisible = true;
+                gridVisible = true;
                 break;
+        }
+
+        // Always bias performance on touch devices: cap DPR harder.
+        const isTouch = (() => {
+            try {
+                return (typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches) ||
+                    'ontouchstart' in window ||
+                    navigator.maxTouchPoints > 0;
+            } catch {
+                return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+            }
+        })();
+        if (isTouch) {
+            desiredPixelRatio = Math.min(desiredPixelRatio, this.graphicsQuality === 'ultra' || this.graphicsQuality === 'super_ultra' ? 2 : 1.5);
         }
 
         this.renderer.setPixelRatio(desiredPixelRatio);
@@ -129,6 +158,12 @@ export class Game {
 
         this.botTargetCount = Math.max(6, Math.min(30, botCount));
         this.foodManager.setTargetCount(foodCount);
+        this.foodManager.setAnimationEnabled(foodAnimation);
+
+        // Make "extra toggles" auto-driven by performance preset.
+        this.showGrid = gridVisible;
+        // Minimap is controlled by SettingsManager too, but we enforce for perf.
+        document.documentElement.classList.toggle('hide-minimap', !minimapVisible);
         this.syncBotsToTarget();
     }
 
@@ -357,8 +392,11 @@ export class Game {
 
         // Build collision grid
         this.collisionSystem.clear();
+        const collisionStepBots = (this.graphicsQuality === 'medium' || this.graphicsQuality === 'low') ? 2 : 1;
         for (const snake of allSnakes) {
-            if (snake.isAlive) this.collisionSystem.registerSnake(snake);
+            if (!snake.isAlive) continue;
+            const step = snake.isPlayer ? 1 : collisionStepBots;
+            this.collisionSystem.registerSnake(snake, step);
         }
         for (const food of foods) {
             this.collisionSystem.registerFood(food);
@@ -425,7 +463,8 @@ export class Game {
         for (const snake of allSnakes) {
             if (!snake.isAlive) continue;
 
-            const collision = this.collisionSystem.checkSnakeCollisions(snake, allSnakes);
+            const otherStep = (this.graphicsQuality === 'medium' || this.graphicsQuality === 'low') && !snake.isPlayer ? 2 : 1;
+            const collision = this.collisionSystem.checkSnakeCollisions(snake, allSnakes, otherStep);
             if (collision) {
                 this.killSnake(collision.victim, collision.killer);
             }
@@ -627,7 +666,18 @@ export class Game {
 
             // Draw food
             const ctx = this.renderer.getContext();
-            this.foodManager.render(ctx, renderOptions);
+            // Cull food rendering by view bounds (huge FPS win on mobile).
+            const viewMargin = 200;
+            const halfW = (this.renderer.width / this.renderer.camera.zoom) / 2;
+            const halfH = (this.renderer.height / this.renderer.camera.zoom) / 2;
+            const minX = Math.max(0, this.renderer.camera.position.x - halfW - viewMargin);
+            const maxX = Math.min(Config.WORLD_WIDTH, this.renderer.camera.position.x + halfW + viewMargin);
+            const minY = Math.max(0, this.renderer.camera.position.y - halfH - viewMargin);
+            const maxY = Math.min(Config.WORLD_HEIGHT, this.renderer.camera.position.y + halfH + viewMargin);
+            const visibleFoods = this.collisionSystem.getFoodsInAABB(minX, minY, maxX, maxY);
+            for (const f of visibleFoods) {
+                f.render(ctx, renderOptions);
+            }
 
             // Draw particles
             this.particles.render(ctx, renderOptions);
