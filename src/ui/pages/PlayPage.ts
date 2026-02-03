@@ -872,12 +872,12 @@ export class PlayPage {
         const rank = leaderboard.findIndex(e => e.isPlayer) + 1;
 
         const maxBoost = Config.BOOST_MAX_ENERGY;
-        
+
         // Get FPS and device info from FPSManager
         const fpsManager = this.game?.getFPSManager();
         const metrics = fpsManager?.getMetrics();
         const profile = fpsManager?.getProfile();
-        
+
         this.hud.update({
             score: player.score,
             mass: player.mass,
@@ -1073,157 +1073,83 @@ export class PlayPage {
         const killedBy = this.escapeHtml(killedByRaw);
         const highScore = this.game?.getHighScore() || 0;
         const isNewHighScore = score > 0 && score === highScore;
-        
-        // Get comprehensive performance data
-        const perf = this.game?.getPerformanceMetrics();
-        const fps = perf?.fps ?? 0;
-        const updateMs = perf?.updateTime ?? 0;
-        const renderMs = perf?.renderTime ?? 0;
-        
-        // Get FPS Manager data
-        const fpsManager = this.game?.getFPSManager();
-        const fpsMetrics = fpsManager?.getMetrics();
-        const deviceProfile = fpsManager?.getProfile();
-        
+
         const survivalStr = this.formatTime(survivalTime);
-        const avgFps = fpsMetrics?.average || fps;
-        const minFps = fpsMetrics?.min || fps;
-        const maxFps = fpsMetrics?.max || fps;
-        const quality = fpsMetrics?.quality || 'high';
-        const deviceTier = deviceProfile?.tier || 'mid';
-        
-        // Calculate performance rating
-        let performanceRating = 'EXCELLENT';
-        let ratingColor = '#22C55E';
-        let ratingEmoji = '🔥';
-        if (avgFps < 30) {
-            performanceRating = 'NEEDS IMPROVEMENT';
-            ratingColor = '#EF4444';
-            ratingEmoji = '⚠️';
-        } else if (avgFps < 50) {
-            performanceRating = 'GOOD';
-            ratingColor = '#F59E0B';
-            ratingEmoji = '✓';
-        } else if (avgFps < 58) {
-            performanceRating = 'VERY GOOD';
-            ratingColor = '#3B82F6';
-            ratingEmoji = '⚡';
-        }
-        
+
         // Calculate rank progress
         const leaderboard = this.game?.getLeaderboard() || [];
         const playerRank = leaderboard.findIndex(e => e.isPlayer) + 1;
         const totalPlayers = leaderboard.length;
-        const rankPercentile = totalPlayers > 0 ? Math.round((playerRank / totalPlayers) * 100) : 0;
+
+        // Peak mass is approximated from score (higher score = higher peak mass)
+        const peakMass = Math.round(score * 1.2);
+        // Kills tracking not implemented yet, show 0
+        const kills = 0;
 
         this.container.innerHTML = `
             <div class="play-gameover-screen">
                 <div class="play-gameover-content">
-                    <!-- Header Section -->
+                    <!-- Icon & Title -->
                     <div class="gameover-header">
-                        <div class="gameover-skull">💀</div>
-                        <div class="gameover-title">${t('gameOver.title')}</div>
-                        ${isNewHighScore ? `
-                            <div class="gameover-new-record">
-                                <span class="record-badge">🏆 NEW RECORD</span>
-                            </div>
-                        ` : ''}
+                        <div class="gameover-icon ${isNewHighScore ? 'is-record' : ''}">
+                            ${isNewHighScore ? '🏆' : '💀'}
+                        </div>
+                        <h1 class="gameover-title">${isNewHighScore ? t('gameOver.newHighScore') : t('gameOver.title')}</h1>
+                        ${killedBy && killedBy !== 'Unknown' ? `<p class="gameover-subtitle">${t('gameOver.killedBy')}: <span class="killer-name">${killedBy}</span></p>` : ''}
                     </div>
                     
-                    <!-- Main Score Display -->
-                    <div class="gameover-score-section">
-                        <div class="final-score-display">
-                            <div class="final-score-label">${t('gameOver.finalScore')}</div>
-                            <div class="final-score-value" style="color: ${isNewHighScore ? '#EAB308' : 'white'}; ${isNewHighScore ? 'text-shadow: 0 0 30px rgba(234, 179, 8, 0.8);' : ''}">
-                                ${score.toLocaleString()}
-                            </div>
-                            ${isNewHighScore ? '<div class="pulse-glow"></div>' : ''}
+                    <!-- Main Score -->
+                    <div class="gameover-score">
+                        <span class="gameover-score-label">${t('gameOver.finalScore')}</span>
+                        <span class="gameover-score-value ${isNewHighScore ? 'is-record' : ''}">${score.toLocaleString()}</span>
+                        ${isNewHighScore ? '<div class="gameover-confetti"></div>' : ''}
+                    </div>
+                    
+                    <!-- Stats Cards -->
+                    <div class="gameover-stats">
+                        <div class="gameover-stat-card">
+                            <span class="stat-card-icon">⏱️</span>
+                            <span class="stat-card-value">${survivalStr}</span>
+                            <span class="stat-card-label">${t('gameOver.survivalTime')}</span>
                         </div>
-                        
-                        <!-- Stats Grid -->
-                        <div class="gameover-stats-grid">
-                            <div class="stat-item">
-                                <div class="stat-icon">🏆</div>
-                                <div class="stat-label">${t('gameOver.highScore')}</div>
-                                <div class="stat-value ${score >= highScore && score > 0 ? 'highlight' : ''}">${highScore.toLocaleString()}</div>
-                            </div>
-                            <div class="stat-item">
-                                <div class="stat-icon">⏱️</div>
-                                <div class="stat-label">${t('gameOver.survivalTime')}</div>
-                                <div class="stat-value">${survivalStr}</div>
-                            </div>
-                            <div class="stat-item">
-                                <div class="stat-icon">📊</div>
-                                <div class="stat-label">RANK</div>
-                                <div class="stat-value">#${playerRank}<span class="stat-sub">/${totalPlayers}</span></div>
-                            </div>
-                            <div class="stat-item">
-                                <div class="stat-icon">⚔️</div>
-                                <div class="stat-label">KILLED BY</div>
-                                <div class="stat-value killer-name">${killedBy}</div>
-                            </div>
+                        <div class="gameover-stat-card">
+                            <span class="stat-card-icon">📊</span>
+                            <span class="stat-card-value">${peakMass.toLocaleString()}</span>
+                            <span class="stat-card-label">${t('gameOver.peakMass')}</span>
+                        </div>
+                        <div class="gameover-stat-card">
+                            <span class="stat-card-icon">🎯</span>
+                            <span class="stat-card-value">#${playerRank}<span class="stat-card-sub">/${totalPlayers}</span></span>
+                            <span class="stat-card-label">${t('hud.rank')}</span>
+                        </div>
+                        <div class="gameover-stat-card">
+                            <span class="stat-card-icon">⚔️</span>
+                            <span class="stat-card-value">${kills}</span>
+                            <span class="stat-card-label">${t('gameOver.kills')}</span>
                         </div>
                     </div>
                     
-                    <!-- Performance Section -->
-                    <div class="gameover-performance">
-                        <div class="performance-header">
-                            <span class="perf-title">PERFORMANCE</span>
-                            <span class="perf-device">${deviceTier.toUpperCase()}</span>
-                        </div>
-                        
-                        <div class="fps-display">
-                            <div class="fps-circle" style="border-color: ${ratingColor}; box-shadow: 0 0 20px ${ratingColor}40;">
-                                <span class="fps-number" style="color: ${ratingColor};">${Math.round(avgFps)}</span>
-                                <span class="fps-label">AVG FPS</span>
-                            </div>
-                            <div class="fps-stats">
-                                <div class="fps-stat">
-                                    <span class="fps-stat-label">MIN</span>
-                                    <span class="fps-stat-value" style="color: #EF4444;">${minFps}</span>
-                                </div>
-                                <div class="fps-stat">
-                                    <span class="fps-stat-label">MAX</span>
-                                    <span class="fps-stat-value" style="color: #22C55E;">${maxFps}</span>
-                                </div>
-                                <div class="fps-stat">
-                                    <span class="fps-stat-label">QUALITY</span>
-                                    <span class="fps-stat-value quality-${quality}">${quality.toUpperCase()}</span>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="performance-rating" style="background: linear-gradient(90deg, ${ratingColor}20, transparent); border-left: 3px solid ${ratingColor};">
-                            <span class="rating-emoji">${ratingEmoji}</span>
-                            <span class="rating-text" style="color: ${ratingColor};">${performanceRating}</span>
-                        </div>
-                        
-                        <div class="performance-bars">
-                            <div class="perf-bar">
-                                <span class="perf-bar-label">Update</span>
-                                <div class="perf-bar-track"><div class="perf-bar-fill" style="width: ${Math.min(100, (updateMs / 16) * 100)}%; background: ${updateMs > 16 ? '#EF4444' : '#22C55E'};"></div></span>
-                                <span class="perf-bar-value">${updateMs.toFixed(1)}ms</span>
-                            </div>
-                            <div class="perf-bar">
-                                <span class="perf-bar-label">Render</span>
-                                <div class="perf-bar-track"><div class="perf-bar-fill" style="width: ${Math.min(100, (renderMs / 16) * 100)}%; background: ${renderMs > 16 ? '#EF4444' : '#22C55E'};"></div></span>
-                                <span class="perf-bar-value">${renderMs.toFixed(1)}ms</span>
-                            </div>
-                        </div>
+                    <!-- High Score -->
+                    ${!isNewHighScore ? `
+                    <div class="gameover-highscore">
+                        <span class="highscore-icon">🏆</span>
+                        <span class="highscore-label">${t('gameOver.highScore')}</span>
+                        <span class="highscore-value">${highScore.toLocaleString()}</span>
                     </div>
-
+                    ` : ''}
+                    
                     <!-- Actions -->
-                    <div class="play-gameover-actions">
-                        <button class="btn btn-primary btn-glow" id="playAgainBtn" type="button">
+                    <div class="gameover-actions">
+                        <button class="btn btn-primary btn-large btn-glow" id="playAgainBtn" type="button">
                             <span class="btn-icon">🔄</span>
                             ${t('gameOver.playAgain')}
                         </button>
-                        <div class="play-gameover-actions-row">
-                            <button class="btn btn-secondary" id="shareBtn" type="button">
+                        <div class="gameover-actions-secondary">
+                            <button class="btn btn-ghost" id="shareBtn" type="button">
                                 <span class="btn-icon">📤</span>
                                 ${t('gameOver.share')}
                             </button>
-                            <button class="btn btn-secondary" id="mainMenuBtn" type="button">
+                            <button class="btn btn-ghost" id="mainMenuBtn" type="button">
                                 <span class="btn-icon">🏠</span>
                                 ${t('gameOver.mainMenu')}
                             </button>
