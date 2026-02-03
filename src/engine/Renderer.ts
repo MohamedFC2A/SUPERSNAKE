@@ -109,7 +109,18 @@ export class Renderer {
     }
 
     public setPixelRatio(pixelRatio: number): void {
-        const next = Math.max(1, Math.min(3, pixelRatio || 1));
+        // Detect mobile for aggressive performance optimization
+        const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        const isLowEnd = (navigator as any).deviceMemory <= 4 || navigator.hardwareConcurrency <= 4;
+        
+        let next = Math.max(1, Math.min(3, pixelRatio || 1));
+        
+        // Cap pixel ratio on mobile for performance
+        if (isTouch) {
+            const maxDpr = isLowEnd ? 1 : 1.5;
+            next = Math.min(next, maxDpr);
+        }
+        
         if (Math.abs(this.pixelRatio - next) < 0.01) return;
         this.pixelRatio = next;
         this.resize();

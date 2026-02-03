@@ -162,7 +162,14 @@ export class Game {
 
         // Always bias performance on touch devices: cap DPR harder.
         if (this.isTouchDevice) {
-            desiredPixelRatio = Math.min(desiredPixelRatio, this.graphicsQuality === 'ultra' || this.graphicsQuality === 'super_ultra' ? 2 : 1.5);
+            // Aggressive performance optimization for mobile
+            const isLowEnd = (navigator as any).deviceMemory <= 4 || navigator.hardwareConcurrency <= 4;
+            const maxDpr = isLowEnd ? 1 : (this.graphicsQuality === 'ultra' || this.graphicsQuality === 'super_ultra' ? 1.5 : 1);
+            desiredPixelRatio = Math.min(desiredPixelRatio, maxDpr);
+            
+            // Further reduce on mobile
+            botCount = Math.floor(botCount * (isLowEnd ? 0.5 : 0.7));
+            foodCount = Math.floor(foodCount * (isLowEnd ? 0.5 : 0.6));
         }
 
         // FPS Gen (Beta): extreme mobile mode for maximum smoothness.

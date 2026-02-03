@@ -4522,3 +4522,478 @@ input[type="range"]::-webkit-slider-thumb:hover {
   text-transform: uppercase;
 }
 
+/* ===== MOBILE OPTIMIZATIONS ===== */
+
+/* Safe area support for notched phones */
+@supports (padding: max(0px)) {
+  .nav {
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  .play-page {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Reduced motion for battery saving */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  .particle-background {
+    display: none !important;
+  }
+}
+
+/* Mobile-first responsive improvements */
+@media (max-width: 768px) {
+  :root {
+    --content-padding-inline: 16px;
+    --space-xl: 24px;
+    --space-xxl: 32px;
+  }
+  
+  /* Home Page Mobile */
+  .home-page {
+    padding: 20px var(--content-padding-inline);
+    min-height: calc(100vh - 56px);
+  }
+  
+  .home-logo-icon {
+    font-size: 60px;
+  }
+  
+  .home-title {
+    font-size: clamp(28px, 8vw, 48px);
+  }
+  
+  .home-subtitle {
+    font-size: 12px;
+  }
+  
+  .home-actions .btn-primary {
+    width: 100%;
+    max-width: 280px;
+  }
+  
+  .home-features {
+    grid-template-columns: 1fr;
+    gap: var(--space-m);
+  }
+  
+  .feature-card {
+    padding: var(--space-m);
+  }
+  
+  /* Navigation Mobile */
+  .nav-inner {
+    height: 56px;
+    padding: 0 12px;
+  }
+  
+  .nav-logo-text {
+    display: none;
+  }
+  
+  .nav-links {
+    gap: 4px;
+  }
+  
+  .nav-link {
+    padding: 8px 10px;
+    font-size: 12px;
+    min-height: 36px;
+  }
+  
+  /* Settings Mobile */
+  .settings-page {
+    padding: 16px;
+  }
+  
+  .settings-tabs-container {
+    border-radius: var(--radius-m);
+  }
+  
+  .settings-tab {
+    padding: var(--space-s) var(--space-xs);
+    font-size: 11px;
+  }
+  
+  .settings-tab .tab-icon {
+    font-size: 16px;
+  }
+  
+  .setting-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-s);
+  }
+  
+  .setting-control {
+    width: 100%;
+  }
+  
+  .setting-control.slider {
+    max-width: 100%;
+  }
+  
+  /* Profile Mobile */
+  .profile-page {
+    padding: 16px;
+  }
+  
+  .profile-cloud-card {
+    flex-direction: column;
+    text-align: center;
+    gap: var(--space-m);
+  }
+  
+  .profile-cloud-stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-s);
+  }
+  
+  .stat-card {
+    padding: var(--space-m);
+  }
+  
+  .stat-card .stat-value {
+    font-size: 20px;
+  }
+  
+  /* Leaderboards Mobile */
+  .leaderboards-page {
+    padding: 16px;
+  }
+  
+  .leaderboard-page-card {
+    font-size: 14px;
+  }
+  
+  .leaderboard-page-head,
+  .leaderboard-page-row {
+    grid-template-columns: 36px 1fr 70px;
+    padding: 10px 12px;
+    gap: 8px;
+  }
+  
+  /* Changelog Mobile */
+  .changelog-page {
+    padding: 16px;
+  }
+  
+  .changelog-toolbar {
+    flex-direction: column;
+    gap: var(--space-s);
+  }
+  
+  .changelog-search {
+    width: 100%;
+  }
+  
+  /* Play Page Mobile - Game */
+  .play-start-content {
+    padding: 20px;
+    width: 100%;
+  }
+  
+  .play-start-title {
+    font-size: 28px;
+  }
+  
+  /* HUD Mobile */
+  .hud-stats {
+    gap: var(--space-xs);
+    padding: 6px 10px;
+  }
+  
+  .hud-stat {
+    min-width: 45px;
+  }
+  
+  .hud-label {
+    font-size: 8px;
+  }
+  
+  .hud-value {
+    font-size: 14px;
+  }
+  
+  .leaderboard {
+    top: 70px;
+    right: 8px;
+    min-width: 130px;
+    padding: 10px;
+  }
+  
+  .leaderboard-title {
+    font-size: 10px;
+  }
+  
+  .leaderboard-entry {
+    font-size: 12px;
+  }
+  
+  .minimap {
+    top: 70px;
+    left: 8px;
+    transform: scale(0.8);
+    transform-origin: top left;
+  }
+  
+  /* Mobile Controls */
+  .joystick-container {
+    bottom: calc(var(--touch-pad) + env(safe-area-inset-bottom));
+    left: calc(var(--touch-pad) + env(safe-area-inset-left));
+  }
+  
+  .boost-button-container {
+    bottom: calc(var(--touch-pad) + env(safe-area-inset-bottom));
+    right: calc(var(--touch-pad) + env(safe-area-inset-right));
+  }
+  
+  /* Play Again/Game Over Mobile */
+  .play-gameover-content {
+    padding: 24px;
+    margin: 16px;
+  }
+  
+  .play-gameover-title {
+    font-size: 36px;
+  }
+  
+  .play-gameover-cards {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  
+  .play-gameover-card-value {
+    font-size: 24px;
+  }
+}
+
+/* Small phones */
+@media (max-width: 380px) {
+  .home-title {
+    font-size: 26px;
+  }
+  
+  .home-logo-icon {
+    font-size: 50px;
+  }
+  
+  .feature-icon {
+    font-size: 28px;
+  }
+  
+  .feature-title {
+    font-size: 14px;
+  }
+  
+  .feature-desc {
+    font-size: 12px;
+  }
+  
+  .stat-card .stat-value {
+    font-size: 18px;
+  }
+  
+  .stat-card .stat-label {
+    font-size: 10px;
+  }
+  
+  .leaderboard-page-head,
+  .leaderboard-page-row {
+    grid-template-columns: 30px 1fr 60px;
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+}
+
+/* Tablets */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .home-features {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .profile-cloud-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Landscape mobile optimization */
+@media (max-height: 500px) and (orientation: landscape) {
+  .home-page {
+    min-height: auto;
+    padding: 16px;
+  }
+  
+  .home-logo-icon {
+    font-size: 40px;
+  }
+  
+  .home-title {
+    font-size: 24px;
+    margin-bottom: 4px;
+  }
+  
+  .home-subtitle {
+    font-size: 10px;
+    margin-bottom: 12px;
+  }
+  
+  .home-highscore {
+    margin-top: 8px;
+    margin-bottom: 12px;
+  }
+  
+  .home-actions {
+    margin-bottom: 12px;
+  }
+  
+  .home-features {
+    display: none; /* Hide features in landscape to save space */
+  }
+  
+  .home-footer {
+    margin-top: 12px;
+  }
+  
+  .play-start-content {
+    padding: 16px;
+  }
+  
+  .play-start-title {
+    font-size: 24px;
+    margin-bottom: 8px;
+  }
+  
+  .play-start-subtitle {
+    margin-bottom: 16px;
+  }
+}
+
+/* Touch device optimizations */
+@media (pointer: coarse) {
+  /* Larger touch targets */
+  .btn {
+    min-height: 48px;
+    padding: 14px 24px;
+  }
+  
+  .btn-small {
+    min-height: 40px;
+    padding: 10px 16px;
+  }
+  
+  .nav-link {
+    min-height: 44px;
+  }
+  
+  /* Remove hover effects on touch (use active instead) */
+  .btn:hover {
+    transform: none;
+  }
+  
+  .btn:active {
+    transform: scale(0.97);
+  }
+  
+  .feature-card:hover {
+    transform: none;
+  }
+  
+  /* Larger inputs */
+  .setting-input,
+  .form-input,
+  .menu-input {
+    font-size: 16px; /* Prevents zoom on iOS */
+    min-height: 48px;
+  }
+  
+  /* Disable particle connections on touch for performance */
+  .particle-background {
+    opacity: 0.3;
+  }
+}
+
+/* Dark mode optimization for OLED */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-primary: #000000;
+  }
+}
+
+/* Performance mode - disable animations */
+[data-performance="low"] * {
+  animation-duration: 0.01ms !important;
+  transition-duration: 0.1s !important;
+}
+
+[data-performance="low"] .particle-background {
+  display: none !important;
+}
+
+/* Loading screen for mobile */
+.mobile-loading {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  transition: opacity 0.3s ease;
+}
+
+.mobile-loading.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.mobile-loading-spinner {
+  width: 60px;
+  height: 60px;
+  border: 4px solid rgba(59, 130, 246, 0.2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.mobile-loading-text {
+  margin-top: 20px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+/* Haptic feedback indicator */
+.haptic-indicator {
+  position: fixed;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+.haptic-indicator.show {
+  opacity: 1;
+}
+

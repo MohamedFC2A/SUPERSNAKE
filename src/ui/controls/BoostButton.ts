@@ -1,6 +1,9 @@
 /**
  * BoostButton - Dedicated boost control with visual feedback
+ * Optimized for mobile performance
  */
+
+import { throttle } from '../../utils/performance';
 
 export interface BoostButtonConfig {
     size: number;
@@ -17,15 +20,14 @@ export class BoostButton {
     private isPressed: boolean = false;
     private chargePercent: number = 100;
     private activeTouchId: number | null = null;
+    private lastVibrate: number = 0;
+    private chargeUpdateQueued: boolean = false;
 
     private boundStartPress: ((e: Event) => void) | null = null;
     private boundEndPress: ((e: Event) => void) | null = null;
     private boundOnTouchStart: ((e: TouchEvent) => void) | null = null;
     private boundOnTouchEnd: ((e: TouchEvent) => void) | null = null;
     private boundOnTouchCancel: ((e: TouchEvent) => void) | null = null;
-    private boundOnMouseDown: ((e: MouseEvent) => void) | null = null;
-    private boundOnMouseUp: ((e: MouseEvent) => void) | null = null;
-    private boundOnMouseLeave: ((e: MouseEvent) => void) | null = null;
 
     constructor(config: Partial<BoostButtonConfig> = {}) {
         this.config = {
@@ -51,13 +53,50 @@ export class BoostButton {
             width: ${size}px;
             height: ${size}px;
             touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+            position: absolute;
+            bottom: calc(var(--touch-pad) + env(safe-area-inset-bottom));
+            ${position === 'left' ? 'left' : 'right'}: calc(var(--touch-pad) + env(safe-area-inset-${position === 'left' ? 'left' : 'right'}));
         `;
 
         this.chargeRing.className = 'boost-charge-ring';
+        this.chargeRing.style.cssText = `
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            background: conic-gradient(
+                rgba(59, 130, 246, 0.95) calc(var(--charge-percent, 100) * 1%),
+                rgba(255, 255, 255, 0.10) 0
+            );
+            -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 7px), #000 calc(100% - 7px));
+            mask: radial-gradient(farthest-side, transparent calc(100% - 7px), #000 calc(100% - 7px));
+            opacity: 0.95;
+            filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.35));
+            transition: filter 0.2s ease;
+        `;
+
         this.button.className = 'boost-button';
+        this.button.style.cssText = `
+            position: absolute;
+            inset: 7px;
+            border-radius: 50%;
+            background: linear-gradient(145deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
+            border: 1px solid rgba(255,255,255,0.2);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #3B82F6;
+            cursor: pointer;
+            transition: transform 0.1s ease, background 0.2s ease;
+            pointer-events: auto;
+        `;
         this.button.innerHTML = `
-            <span class="boost-icon">⚡</span>
-            <span class="boost-text">BOOST</span>
+            <span class="boost-icon" style="font-size: 24px; line-height: 1; filter: drop-shadow(0 0 8px rgba(59,130,246,0.5));">⚡</span>
+            <span class="boost-text" style="font-size: 9px; font-weight: 700; letter-spacing: 0.08em; color: rgba(255,255,255,0.9); margin-top: 2px;">BOOST</span>
         `;
 
         this.container.appendChild(this.chargeRing);
@@ -67,17 +106,37 @@ export class BoostButton {
     private setupEventListeners(): void {
         const startPress = (e: Event) => {
             e.preventDefault();
+            if (this.isPressed) return;
+            
             this.isPressed = true;
             this.container.classList.add('pressed');
+            this.button.style.transform = 'scale(0.92)';
+            this.button.style.background = 'rgba(59, 130, 246, 0.3)';
 
-            this.config.vibrate?.(20);
+            // Throttled haptic feedback
+            const now = Date.now();
+            if (now - this.lastVibrate > 50) {
+                this.config.vibrate?.(15);
+                this.lastVibrate = now;
+            }
         };
 
         const endPress = (e: Event) => {
             e.preventDefault();
+            if (!this.isPressed) return;
+            
             this.isPressed = false;
             this.container.classList.remove('pressed');
+            this.button.style.transform = 'scale(1)';
+            this.button.style.background = 'linear-gradient(145deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05))';
             this.activeTouchId = null;
+            
+            // Throttled haptic feedback
+            const now = Date.now();
+            if (now - this.lastVibrate > 50) {
+                this.config.vibrate?.(8);
+                this.lastVibrate = now;
+            }
         };
 
         this.boundStartPress = startPress;
@@ -97,19 +156,17 @@ export class BoostButton {
             if (ended) endPress(e);
         };
 
-        this.boundOnTouchCancel = (e: TouchEvent) => endPress(e);
+        this.boundOnTouchCancel = (e: TouchEvent) => {
+            endPress(e);
+        };
 
-        this.boundOnMouseDown = (e: MouseEvent) => startPress(e);
-        this.boundOnMouseUp = (e: MouseEvent) => endPress(e);
-        this.boundOnMouseLeave = (e: MouseEvent) => endPress(e);
-
-        if (this.boundOnTouchStart) this.button.addEventListener('touchstart', this.boundOnTouchStart, { passive: false });
-        if (this.boundOnTouchEnd) this.button.addEventListener('touchend', this.boundOnTouchEnd, { passive: false });
-        if (this.boundOnTouchCancel) this.button.addEventListener('touchcancel', this.boundOnTouchCancel, { passive: false });
-
-        if (this.boundOnMouseDown) this.button.addEventListener('mousedown', this.boundOnMouseDown);
-        if (this.boundOnMouseUp) this.button.addEventListener('mouseup', this.boundOnMouseUp);
-        if (this.boundOnMouseLeave) this.button.addEventListener('mouseleave', this.boundOnMouseLeave);
+        // Use passive listeners where possible
+        this.button.addEventListener('touchstart', this.boundOnTouchStart, { passive: false });
+        this.button.addEventListener('touchend', this.boundOnTouchEnd, { passive: false });
+        this.button.addEventListener('touchcancel', this.boundOnTouchCancel, { passive: true });
+        
+        // Prevent context menu
+        this.button.addEventListener('contextmenu', (e) => e.preventDefault());
     }
 
     getElement(): HTMLElement {
@@ -122,18 +179,31 @@ export class BoostButton {
 
     updateCharge(percent: number): void {
         this.chargePercent = Math.max(0, Math.min(100, percent));
-
-        // Update ring visual (CSS conic-gradient)
-        this.chargeRing.style.setProperty('--charge-percent', `${this.chargePercent}`);
-
-        // Add/remove ready state
-        if (this.chargePercent >= 100) {
-            this.container.classList.add('boost-ready');
-            this.container.classList.remove('boost-low');
-        } else {
-            this.container.classList.remove('boost-ready');
-            if (this.chargePercent <= 18) this.container.classList.add('boost-low');
-            else this.container.classList.remove('boost-low');
+        
+        // Queue update to batch DOM writes
+        if (!this.chargeUpdateQueued) {
+            this.chargeUpdateQueued = true;
+            requestAnimationFrame(() => {
+                this.chargeRing.style.setProperty('--charge-percent', `${this.chargePercent}`);
+                
+                // Add/remove ready state
+                if (this.chargePercent >= 100) {
+                    this.container.classList.add('boost-ready');
+                    this.container.classList.remove('boost-low');
+                    this.chargeRing.style.filter = 'drop-shadow(0 6px 18px rgba(0, 0, 0, 0.35)) drop-shadow(0 0 10px rgba(34, 197, 94, 0.5))';
+                } else {
+                    this.container.classList.remove('boost-ready');
+                    if (this.chargePercent <= 18) {
+                        this.container.classList.add('boost-low');
+                        this.chargeRing.style.filter = 'drop-shadow(0 6px 18px rgba(0, 0, 0, 0.35)) drop-shadow(0 0 10px rgba(239, 68, 68, 0.3))';
+                    } else {
+                        this.container.classList.remove('boost-low');
+                        this.chargeRing.style.filter = 'drop-shadow(0 6px 18px rgba(0, 0, 0, 0.35))';
+                    }
+                }
+                
+                this.chargeUpdateQueued = false;
+            });
         }
     }
 
@@ -144,19 +214,20 @@ export class BoostButton {
 
     show(): void {
         this.container.classList.remove('hidden');
+        this.container.style.opacity = '1';
+        this.container.style.pointerEvents = 'auto';
     }
 
     hide(): void {
         this.container.classList.add('hidden');
+        this.container.style.opacity = '0';
+        this.container.style.pointerEvents = 'none';
     }
 
     destroy(): void {
         if (this.boundOnTouchStart) this.button.removeEventListener('touchstart', this.boundOnTouchStart);
         if (this.boundOnTouchEnd) this.button.removeEventListener('touchend', this.boundOnTouchEnd);
         if (this.boundOnTouchCancel) this.button.removeEventListener('touchcancel', this.boundOnTouchCancel);
-        if (this.boundOnMouseDown) this.button.removeEventListener('mousedown', this.boundOnMouseDown);
-        if (this.boundOnMouseUp) this.button.removeEventListener('mouseup', this.boundOnMouseUp);
-        if (this.boundOnMouseLeave) this.button.removeEventListener('mouseleave', this.boundOnMouseLeave);
         this.container.remove();
     }
 }
