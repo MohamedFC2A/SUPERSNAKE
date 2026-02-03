@@ -1,6 +1,6 @@
 /**
  * HUD Manager - Orchestrates all in-game HUD components
- * Enhanced with in-game FPS display and performance metrics
+ * Ultra-optimized mobile-first design with FPS display at bottom-left
  */
 
 import { t, onLocaleChange } from '../../i18n';
@@ -32,6 +32,10 @@ export class HUDManager {
     private isVisible: boolean = false;
     private unsubscribeLocale: (() => void) | null = null;
     private fpsUpdateQueued: boolean = false;
+    
+    // FPS smoothing for display
+    private displayFPS: number = 60;
+    private lastFpsUpdate: number = 0;
 
     constructor() {
         this.container = document.createElement('div');
@@ -48,38 +52,45 @@ export class HUDManager {
 
     private render(): void {
         this.container.innerHTML = `
-            <div class="hud-stats">
-                <div class="hud-stat score">
-                    <span class="hud-label">${t('hud.score')}</span>
-                    <span class="hud-value" id="hudScore">0</span>
-                </div>
-                <div class="hud-stat mass">
-                    <span class="hud-label">${t('hud.mass')}</span>
-                    <span class="hud-value" id="hudMass">0</span>
-                </div>
-                <div class="hud-stat rank">
-                    <span class="hud-label">${t('hud.rank')}</span>
-                    <span class="hud-value" id="hudRank">#1</span>
-                </div>
-            </div>
-            
-            <!-- In-Game FPS Display -->
-            <div class="hud-fps" id="hudFps">
-                <div class="hud-fps-inner">
-                    <span class="hud-fps-value" id="hudFpsValue">60</span>
-                    <span class="hud-fps-label">FPS</span>
-                    <div class="hud-fps-bar-container">
-                        <div class="hud-fps-bar" id="hudFpsBar"></div>
+            <!-- Top Stats Bar -->
+            <div class="hud-top-bar">
+                <div class="hud-stats">
+                    <div class="hud-stat score">
+                        <span class="hud-label">${t('hud.score')}</span>
+                        <span class="hud-value" id="hudScore">0</span>
+                    </div>
+                    <div class="hud-stat mass">
+                        <span class="hud-label">${t('hud.mass')}</span>
+                        <span class="hud-value" id="hudMass">0</span>
+                    </div>
+                    <div class="hud-stat rank">
+                        <span class="hud-label">${t('hud.rank')}</span>
+                        <span class="hud-value" id="hudRank">#1</span>
                     </div>
                 </div>
-                <div class="hud-device-tier" id="hudDeviceTier"></div>
             </div>
             
+            <!-- Bottom Left: Compact FPS Display -->
+            <div class="hud-fps-compact" id="hudFps">
+                <div class="hud-fps-badge" id="hudFpsBadge">
+                    <span class="hud-fps-value" id="hudFpsValue">60</span>
+                    <span class="hud-fps-hz">Hz</span>
+                </div>
+                <div class="hud-fps-bar-bg">
+                    <div class="hud-fps-bar" id="hudFpsBar"></div>
+                </div>
+                <div class="hud-device-badge" id="hudDeviceTier">MID</div>
+            </div>
+            
+            <!-- Bottom Center: Boost Bar -->
             <div class="boost-bar" id="boostBar">
                 <div class="boost-bar-bg"></div>
                 <div class="boost-fill" id="boostFill"></div>
                 <span class="boost-label">${t('hud.boost')}</span>
             </div>
+            
+            <!-- Top Right: Danger Indicator (hidden by default) -->
+            <div class="hud-danger-indicator" id="hudDanger"></div>
         `;
 
         this.scoreEl = this.container.querySelector('#hudScore');
@@ -123,7 +134,7 @@ export class HUDManager {
             this.rankEl.textContent = `#${data.rank}`;
         }
 
-        // Update FPS display (throttled)
+        // Update FPS display (throttled and smoothed)
         if (data.fps !== undefined && !this.fpsUpdateQueued) {
             this.fpsUpdateQueued = true;
             requestAnimationFrame(() => {
@@ -157,34 +168,41 @@ export class HUDManager {
     private updateFpsDisplay(fps: number, tier?: string, quality?: string): void {
         if (!this.fpsEl || !this.fpsBarEl) return;
 
-        // Color based on FPS performance
-        let color = '#22C55E'; // Green
-        let glowColor = 'rgba(34, 197, 94, 0.8)';
-        let barWidth = Math.min(100, (fps / 60) * 100);
+        // Smooth FPS display (blend toward actual)
+        const now = performance.now();
+        if (now - this.lastFpsUpdate > 100) { // Update every 100ms
+            this.displayFPS = Math.round(this.displayFPS * 0.7 + fps * 0.3);
+            this.lastFpsUpdate = now;
+        }
 
-        if (fps < 30) {
-            color = '#EF4444'; // Red
+        // Color based on FPS performance - mobile optimized thresholds
+        let color = '#22C55E'; // Green - excellent
+        let glowColor = 'rgba(34, 197, 94, 0.8)';
+        let barWidth = Math.min(100, (this.displayFPS / 60) * 100);
+
+        if (this.displayFPS < 30) {
+            color = '#EF4444'; // Red - poor
             glowColor = 'rgba(239, 68, 68, 0.8)';
-        } else if (fps < 50) {
-            color = '#F59E0B'; // Yellow
+        } else if (this.displayFPS < 50) {
+            color = '#F59E0B'; // Yellow - okay
             glowColor = 'rgba(245, 158, 11, 0.8)';
         }
 
-        this.fpsEl.textContent = fps.toString();
+        this.fpsEl.textContent = this.displayFPS.toString();
         this.fpsEl.style.color = color;
-        this.fpsEl.style.textShadow = `0 0 10px ${glowColor}`;
         
         this.fpsBarEl.style.width = `${barWidth}%`;
-        this.fpsBarEl.style.background = `linear-gradient(90deg, ${color}, ${glowColor})`;
-        this.fpsBarEl.style.boxShadow = `0 0 10px ${glowColor}`;
+        this.fpsBarEl.style.background = color;
 
-        // Update device tier display
+        // Update device tier display - compact format
         if (this.deviceTierEl && tier) {
-            const qualityEmoji = quality === 'ultra' ? '🔥' : 
-                               quality === 'high' ? '⚡' : 
-                               quality === 'medium' ? '✓' : 
-                               quality === 'low' ? '▼' : '⏬';
-            this.deviceTierEl.textContent = `${tier.toUpperCase()} ${qualityEmoji}`;
+            // Short tier names for mobile
+            const shortTier = tier === 'flagship' ? 'FLAG' : 
+                             tier === 'high' ? 'HIGH' : 
+                             tier === 'mid' ? 'MID' : 
+                             tier === 'low' ? 'LOW' : 'ECO';
+            this.deviceTierEl.textContent = shortTier;
+            this.deviceTierEl.className = `hud-device-badge tier-${tier}`;
         }
     }
 

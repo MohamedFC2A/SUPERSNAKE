@@ -1291,99 +1291,111 @@ select:focus-visible {
   }
 }
 
-/* ===== In-Game FPS Display ===== */
-.hud-fps {
+/* ===== New Ultra-Compact FPS Display (Bottom Left) ===== */
+.hud-fps-compact {
   position: absolute;
-  top: var(--space-m);
-  right: var(--space-m);
+  bottom: 80px;
+  left: var(--space-m);
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
-  pointer-events: auto;
+  align-items: flex-start;
+  gap: 2px;
+  pointer-events: none;
+  z-index: 50;
 }
 
-.hud-fps-inner {
+.hud-fps-badge {
   display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 12px;
-  background: rgba(0, 0, 0, 0.6);
-  border: 1px solid rgba(59, 130, 246, 0.3);
-  border-radius: 20px;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  align-items: baseline;
+  gap: 1px;
+  padding: 3px 8px;
+  background: rgba(0, 0, 0, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .hud-fps-value {
   font-family: var(--font-display);
-  font-size: 16px;
+  font-size: 13px;
   font-weight: 700;
   color: #22C55E;
-  text-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
-  transition: color 0.3s ease;
+  line-height: 1;
+  min-width: 18px;
+  text-align: center;
 }
 
-.hud-fps-label {
-  font-size: 9px;
-  color: rgba(255, 255, 255, 0.6);
-  font-weight: 600;
-  letter-spacing: 0.5px;
+.hud-fps-hz {
+  font-size: 8px;
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 500;
 }
 
-.hud-fps-bar-container {
-  width: 40px;
-  height: 3px;
+.hud-fps-bar-bg {
+  width: 44px;
+  height: 2px;
   background: rgba(255, 255, 255, 0.1);
-  border-radius: 2px;
+  border-radius: 1px;
   overflow: hidden;
-  margin-left: 4px;
+  margin-left: 1px;
 }
 
 .hud-fps-bar {
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, #22C55E, rgba(34, 197, 94, 0.8));
-  border-radius: 2px;
-  box-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
-  transition: width 0.3s ease, background 0.3s ease;
+  background: #22C55E;
+  border-radius: 1px;
+  transition: width 0.15s ease-out, background 0.15s ease-out;
 }
 
-.hud-device-tier {
-  font-size: 9px;
+.hud-device-badge {
+  font-size: 7px;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.6);
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  padding: 2px 8px;
-  background: rgba(0, 0, 0, 0.4);
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 1px 5px;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  margin-left: 1px;
 }
 
+/* Device tier colors */
+.hud-device-badge.tier-flagship { color: #EAB308; border-color: rgba(234, 179, 8, 0.3); }
+.hud-device-badge.tier-high { color: #3B82F6; border-color: rgba(59, 130, 246, 0.3); }
+.hud-device-badge.tier-mid { color: #22C55E; border-color: rgba(34, 197, 94, 0.3); }
+.hud-device-badge.tier-low { color: #F59E0B; border-color: rgba(245, 158, 11, 0.3); }
+.hud-device-badge.tier-very-low { color: #EF4444; border-color: rgba(239, 68, 68, 0.3); }
+
+/* Mobile adjustments */
 @media (max-width: 480px) {
-  .hud-fps {
-    top: 70px;
-    right: 8px;
+  .hud-fps-compact {
+    bottom: 100px;
+    left: 8px;
   }
   
-  .hud-fps-inner {
-    padding: 4px 10px;
+  .hud-fps-badge {
+    padding: 2px 6px;
   }
   
   .hud-fps-value {
-    font-size: 14px;
+    font-size: 12px;
   }
   
-  .hud-fps-bar-container {
-    width: 30px;
+  .hud-fps-bar-bg {
+    width: 38px;
   }
   
-  .hud-device-tier {
-    font-size: 8px;
-    padding: 2px 6px;
+  .hud-device-badge {
+    font-size: 6px;
+    padding: 1px 4px;
   }
 }
+
+/* Hide old FPS display if still present */
+.hud-fps { display: none !important; }
 
 /* ===== Leaderboard ===== */
 .leaderboard {

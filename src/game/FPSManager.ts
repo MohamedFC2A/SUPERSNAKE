@@ -163,7 +163,6 @@ export class FPSManager {
     private config: FPSConfig;
     private profile: DeviceProfile;
     private metrics: FPSMetrics;
-    private counterElement: HTMLElement | null = null;
     private frameTimes: number[] = [];
     private lastTime: number = 0;
     private frameCount: number = 0;
@@ -209,10 +208,6 @@ export class FPSManager {
         this.frameCount = 0;
         this.frameTimes = [];
         
-        if (this.config.showCounter) {
-            this.createCounter();
-        }
-        
         this.rafId = requestAnimationFrame(this.loop.bind(this));
     }
     
@@ -222,7 +217,6 @@ export class FPSManager {
     stop(): void {
         this.isActive = false;
         cancelAnimationFrame(this.rafId);
-        this.removeCounter();
     }
     
     /**
@@ -300,9 +294,6 @@ export class FPSManager {
                 this.adjustQuality(fps);
             }
             
-            // Update counter display
-            this.updateCounter();
-            
             // Reset counters
             this.frameCount = 0;
             this.fpsUpdateTime = timestamp;
@@ -364,111 +355,10 @@ export class FPSManager {
     }
     
     /**
-     * Create FPS counter element
-     */
-    private createCounter(): void {
-        if (this.counterElement) return;
-        
-        this.counterElement = document.createElement('div');
-        this.counterElement.className = 'fps-counter';
-        this.counterElement.style.cssText = `
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            background: linear-gradient(135deg, rgba(0,0,0,0.9) 0%, rgba(20,20,20,0.95) 100%);
-            border: 1px solid rgba(59, 130, 246, 0.5);
-            border-radius: 12px;
-            padding: 12px 16px;
-            font-family: 'Inter', -apple-system, sans-serif;
-            font-size: 14px;
-            color: white;
-            z-index: 10000;
-            pointer-events: none;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.5), 0 0 20px rgba(59, 130, 246, 0.2);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            min-width: 140px;
-            transition: all 0.3s ease;
-        `;
-        
-        document.body.appendChild(this.counterElement);
-    }
-    
-    /**
-     * Update FPS counter display
-     */
-    private updateCounter(): void {
-        if (!this.counterElement) return;
-        
-        const fps = this.metrics.current;
-        const target = this.config.targetFPS;
-        
-        // Color based on performance
-        let color = '#22C55E'; // Green - Good
-        let glowColor = 'rgba(34, 197, 94, 0.5)';
-        if (fps < target * 0.7) {
-            color = '#EF4444'; // Red - Bad
-            glowColor = 'rgba(239, 68, 68, 0.5)';
-        } else if (fps < target * 0.9) {
-            color = '#F59E0B'; // Yellow - Okay
-            glowColor = 'rgba(245, 158, 11, 0.5)';
-        }
-        
-        this.counterElement.style.borderColor = glowColor;
-        this.counterElement.style.boxShadow = `0 4px 20px rgba(0,0,0,0.5), 0 0 20px ${glowColor}`;
-        
-        this.counterElement.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-                <div style="width: 8px; height: 8px; border-radius: 50%; background: ${color}; 
-                            box-shadow: 0 0 8px ${color}; animation: pulse 1s ease-in-out infinite;"></div>
-                <span style="font-weight: 700; font-size: 18px; color: ${color}; text-shadow: 0 0 10px ${color};">
-                    ${fps}
-                </span>
-                <span style="font-size: 11px; color: rgba(255,255,255,0.5);">FPS</span>
-            </div>
-            <div style="font-size: 10px; color: rgba(255,255,255,0.6); letter-spacing: 0.5px; text-transform: uppercase;">
-                ${this.profile.tier.toUpperCase()} | ${this.currentQuality.toUpperCase()}
-            </div>
-            <div style="margin-top: 6px; height: 3px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden;">
-                <div style="width: ${Math.min(100, (fps / target) * 100)}%; height: 100%; 
-                            background: ${color}; box-shadow: 0 0 8px ${color}; transition: all 0.3s ease;"></div>
-            </div>
-        `;
-        
-        // Add animation keyframes if not present
-        if (!document.getElementById('fps-counter-styles')) {
-            const style = document.createElement('style');
-            style.id = 'fps-counter-styles';
-            style.textContent = `
-                @keyframes pulse {
-                    0%, 100% { opacity: 1; transform: scale(1); }
-                    50% { opacity: 0.7; transform: scale(0.95); }
-                }
-            `;
-            document.head.appendChild(style);
-        }
-    }
-    
-    /**
-     * Remove FPS counter
-     */
-    private removeCounter(): void {
-        if (this.counterElement) {
-            this.counterElement.remove();
-            this.counterElement = null;
-        }
-    }
-    
-    /**
-     * Toggle counter visibility
+     * Toggle counter visibility (config only - display handled by HUDManager)
      */
     toggleCounter(show?: boolean): void {
         this.config.showCounter = show ?? !this.config.showCounter;
-        if (this.config.showCounter) {
-            this.createCounter();
-        } else {
-            this.removeCounter();
-        }
     }
     
     /**

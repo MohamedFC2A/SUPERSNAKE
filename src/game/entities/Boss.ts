@@ -44,6 +44,9 @@ export class Boss {
     private foodTargetId: string | null = null;
     private foodRetargetMs: number = 0;
 
+    // Frame counter for rendering optimization
+    private frameCount: number = 0;
+
     constructor(kind: BossKind, position: Vector2) {
         this.kind = kind;
         this.name = kind;
@@ -165,6 +168,12 @@ export class Boss {
     public render(ctx: CanvasRenderingContext2D, options?: RenderOptions): void {
         if (!this.isAlive) return;
 
+        // Increment frame counter for rendering optimization
+        this.frameCount++;
+
+        // Cache current time once per frame to avoid performance.now() thrashing
+        const now = performance.now();
+
         if (this.kind === 'NONO') {
             this.renderNono(ctx, options);
         } else {
@@ -176,6 +185,8 @@ export class Boss {
             const q = options?.quality ?? 'high';
             const step = q === 'medium' || q === 'low' ? 2 : 1;
             const allowHighlights = q === 'ultra' || q === 'super_ultra';
+            // Skip expensive rendering every other frame in low quality mode
+            const skipExpensiveEffects = q === 'low' && (this.frameCount % 2 === 1);
 
             for (let i = this.segments.length - 1; i >= 1; i -= step) {
                 const segment = this.segments[i];
@@ -204,12 +215,12 @@ export class Boss {
             }
 
             // Spikes/ridges near head for a scarier profile (limited count for performance)
-            if (allowHighlights) {
+            if (allowHighlights && !skipExpensiveEffects) {
                 this.drawRidge(ctx);
             }
 
             // Head
-            this.drawHead(ctx);
+            this.drawHead(ctx, now);
 
             ctx.restore();
         }
@@ -347,8 +358,8 @@ export class Boss {
         let best: Food | null = null;
         let bestDistSq = Infinity;
 
-        // Soft cap scan cost
-        const n = Math.min(foods.length, 900);
+        // Soft cap scan cost - limit to 100 foods max for performance
+        const n = Math.min(foods.length, 100);
         for (let i = 0; i < n; i++) {
             const f = foods[i];
             if (!f || f.isConsumed) continue;
@@ -456,7 +467,7 @@ export class Boss {
         ctx.restore();
     }
 
-    private drawEye(ctx: CanvasRenderingContext2D): void {
+    private drawEye(ctx: CanvasRenderingContext2D, now: number): void {
         const head = this.segments[0]?.position ?? this.position;
         const angle = Math.atan2(this.direction.y, this.direction.x);
 
@@ -473,8 +484,8 @@ export class Boss {
         ctx.arc(eyeOffset, 0, eyeRadius, 0, Math.PI * 2);
         ctx.fill();
 
-        // Iris glow (more menacing)
-        const pulse = 0.22 + 0.14 * Math.sin(performance.now() / 120);
+        // Iris glow (more menacing) - use cached time instead of performance.now()
+        const pulse = 0.22 + 0.14 * Math.sin(now / 120);
         ctx.fillStyle = '#ff3b00';
         ctx.globalAlpha = pulse;
         ctx.beginPath();
@@ -507,7 +518,7 @@ export class Boss {
         ctx.restore();
     }
 
-    private drawMouth(ctx: CanvasRenderingContext2D): void {
+    private drawMouth(ctx: CanvasRenderingContext2D, now: number): void {
         const head = this.segments[0]?.position ?? this.position;
         const angle = Math.atan2(this.direction.y, this.direction.x);
 
@@ -518,7 +529,8 @@ export class Boss {
         const mouthOffset = this.headRadius * 0.7;
         const mouthWidth = this.headRadius * 1.0;
         const mouthHeightBase = this.headRadius * 0.34;
-        const chomp = 0.78 + 0.22 * Math.sin(performance.now() / 110);
+        // Use cached time instead of performance.now()
+        const chomp = 0.78 + 0.22 * Math.sin(now / 110);
         const mouthHeight = mouthHeightBase * chomp;
 
         // Dark mouth cavity
@@ -544,8 +556,8 @@ export class Boss {
             ctx.fill();
         }
 
-        // Tongue flick (subtle)
-        const tongue = 0.25 + 0.75 * Math.max(0, Math.sin(performance.now() / 180));
+        // Tongue flick (subtle) - use cached time instead of performance.now()
+        const tongue = 0.25 + 0.75 * Math.max(0, Math.sin(now / 180));
         ctx.strokeStyle = 'rgba(180, 0, 0, 0.65)';
         ctx.lineWidth = Math.max(2, this.headRadius * 0.045);
         ctx.beginPath();
@@ -556,7 +568,7 @@ export class Boss {
         ctx.restore();
     }
 
-    private drawHead(ctx: CanvasRenderingContext2D): void {
+    private drawHead(ctx: CanvasRenderingContext2D, now: number): void {
         const head = this.segments[0]?.position ?? this.position;
         const angle = Math.atan2(this.direction.y, this.direction.x);
 
@@ -606,9 +618,9 @@ export class Boss {
 
         ctx.restore();
 
-        // Eye + mouth drawn in world space with their own transforms
-        this.drawEye(ctx);
-        this.drawMouth(ctx);
+        // Eye + mouth drawn in world space with their own transforms - pass cached time
+        this.drawEye(ctx, now);
+        this.drawMouth(ctx, now);
     }
 
     private drawRidge(ctx: CanvasRenderingContext2D): void {

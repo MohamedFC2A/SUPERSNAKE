@@ -49,6 +49,13 @@ export class Game {
     private aiNearbySnakes: Snake[] = [];
     private aiNearbyFoods: Food[] = [];
     private visibleFoods: Food[] = [];
+    
+    // Extreme mobile optimizations
+    private renderFrameCount: number = 0;
+    private readonly renderSkipFrames: number;
+    private lastPlayerPosition: Vector2 = new Vector2(0, 0);
+    private entityDistanceCache: Map<string, number> = new Map();
+    private distanceCacheFrame: number = 0;
 
     // Player info
     private playerName: string = 'Player';
@@ -93,6 +100,12 @@ export class Game {
             }
         })();
         this.perfGovernor = new PerformanceGovernor(this.isTouchDevice);
+        
+        // EXTREME MOBILE OPTIMIZATION: Render frame skipping
+        // On 120Hz displays, we render every 2nd frame (60 FPS cap)
+        // On low-end, we may render every 3rd frame (40 FPS)
+        const isLowEnd = (navigator as any).deviceMemory <= 4 || navigator.hardwareConcurrency <= 4;
+        this.renderSkipFrames = this.isTouchDevice ? (isLowEnd ? 2 : 1) : 1;
 
         this.setupGameLoop();
     }
@@ -768,9 +781,21 @@ export class Game {
      * Main render loop
      */
     private render(alpha: number): void {
+        // EXTREME MOBILE OPTIMIZATION: Frame skipping
+        this.renderFrameCount++;
+        if (this.renderSkipFrames > 1 && this.renderFrameCount % this.renderSkipFrames !== 0) {
+            // Skip this render frame - saves battery on high refresh displays
+            return;
+        }
+        
         this.renderer.clear();
 
         if (this.state === 'playing' && this.player) {
+            // EXTREME: Clear distance cache every 5 frames for LOD
+            if (this.renderFrameCount % 5 === 0) {
+                this.entityDistanceCache.clear();
+                this.distanceCacheFrame = this.renderFrameCount;
+            }
             const renderOptions: RenderOptions = {
                 quality: this.graphicsQuality,
                 glowEnabled: this.glowEnabled,
@@ -824,12 +849,48 @@ export class Game {
                 f.render(ctx, renderOptions);
             }
 
-            // Draw particles
-            this.particles.render(ctx, renderOptions);
+            // Draw particles - skip rendering if FPS is low on mobile
+            if (this.particlesEnabled) {
+                // EXTREME: Reduce particle rendering on mobile
+                if (this.isTouchDevice) {
+                    // Render particles at half rate on mobile
+                    if (this.renderFrameCount % 2 === 0) {
+                        this.particles.render(ctx, { ...renderOptions, quality: 'medium' });
+                    }
+                } else {
+                    this.particles.render(ctx, renderOptions);
+                }
+            }
 
-            // Draw bots
+            // Draw bots - with EXTREME distance culling for mobile
+            const playerPos = this.player.position;
+            const lodDistanceHigh = 600;  // Full detail
+            const lodDistanceMed = 1200;  // Reduced detail  
+            const lodDistanceLow = 2000;  // Minimal detail
+            const cullDistance = 3000;    // Don't render beyond this
+            
             for (const bot of this.bots) {
-                if (bot.isAlive && this.renderer.isVisible(bot.position, 200)) {
+                if (!bot.isAlive) continue;
+                
+                // Quick visibility check first
+                if (!this.renderer.isVisible(bot.position, 200)) continue;
+                
+                // Distance-based LOD
+                const dist = playerPos.distance(bot.position);
+                
+                // Cull very distant bots
+                if (dist > cullDistance) continue;
+                
+                // Apply LOD based on distance
+                if (dist > lodDistanceLow) {
+                    // Far bots: render at half rate (every other frame)
+                    if (this.renderFrameCount % 2 !== 0) continue;
+                    bot.render(ctx, { ...renderOptions, quality: 'low' });
+                } else if (dist > lodDistanceMed) {
+                    // Medium distance: medium quality
+                    bot.render(ctx, { ...renderOptions, quality: 'medium' });
+                } else {
+                    // Close bots: full quality
                     bot.render(ctx, renderOptions);
                 }
             }

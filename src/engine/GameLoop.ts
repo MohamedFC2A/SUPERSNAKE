@@ -20,8 +20,32 @@ function isLowEndDevice(): boolean {
 }
 
 /**
+ * Detect display refresh rate - attempts to determine if running on 120Hz display
+ */
+function detectRefreshRate(): number {
+    // Check for high refresh rate using modern APIs
+    if ('getScreenDetails' in window) {
+        // @ts-ignore - Experimental API
+        const screenDetails = window.getScreenDetails?.();
+        if (screenDetails?.currentScreen?.refreshRate) {
+            return screenDetails.currentScreen.refreshRate;
+        }
+    }
+    
+    // Check standard screen properties
+    // @ts-ignore
+    if (window.screen?.refreshRate) {
+        // @ts-ignore
+        return window.screen.refreshRate;
+    }
+    
+    // Default assumption - most devices are 60Hz
+    return 60;
+}
+
+/**
  * GameLoop - Main game loop with fixed timestep
- * Optimized for mobile performance
+ * Optimized for mobile performance with 120Hz cap
  */
 export class GameLoop {
     private lastTime: number = 0;
@@ -36,6 +60,13 @@ export class GameLoop {
     private readonly isLowEnd: boolean;
     private frameSkip: number = 1;
     private frameCount: number = 0;
+    
+    // 120Hz display handling
+    private readonly targetFPS: number;
+    private readonly minFrameTime: number;
+    private lastRenderTimestamp: number = 0;
+    private readonly detectedRefreshRate: number;
+    private highRefreshDetected: boolean = false;
 
     private updateCallback: ((dt: number) => void) | null = null;
     private renderCallback: ((alpha: number) => void) | null = null;
@@ -63,22 +94,44 @@ export class GameLoop {
 
     private boundLoop: (timestamp: number) => void;
 
-    constructor() {
+    constructor(targetFPS?: number) {
         this.boundLoop = this.loop.bind(this);
         
         // Detect device capabilities
         this.isTouch = isTouchDevice();
         this.isLowEnd = isLowEndDevice();
+        this.detectedRefreshRate = detectRefreshRate();
+        
+        // CAP AT 60 FPS MAX - even on 120Hz displays
+        // This prevents battery drain and overheating on mobile
+        if (targetFPS) {
+            this.targetFPS = Math.min(targetFPS, 60); // Hard cap at 60
+        } else if (this.isLowEnd) {
+            this.targetFPS = 30;
+        } else if (this.isTouch) {
+            // FORCE 60 FPS CAP on mobile, even if display is 120Hz
+            this.targetFPS = 60;
+            // If we detect 120Hz, enable frame skipping
+            if (this.detectedRefreshRate >= 90) {
+                this.highRefreshDetected = true;
+                this.frameSkip = 2; // Skip every other frame on 120Hz
+            }
+        } else {
+            this.targetFPS = 60;
+        }
+        
+        // Calculate minimum time between frames for capping
+        this.minFrameTime = 1000 / this.targetFPS;
         
         // Adjust settings based on device
         if (this.isLowEnd) {
             this.MAX_UPDATES_PER_FRAME = 1;
             this.FIXED_TIMESTEP = 1000 / 30; // 30fps updates for low-end
-            this.frameSkip = 2;
+            this.frameSkip = Math.max(this.frameSkip, 2);
         } else if (this.isTouch) {
             this.MAX_UPDATES_PER_FRAME = 1;
             this.FIXED_TIMESTEP = 1000 / 60;
-            this.frameSkip = 1;
+            // frameSkip may already be 2 for 120Hz displays
         } else {
             this.MAX_UPDATES_PER_FRAME = 2;
             this.FIXED_TIMESTEP = 1000 / 60;
@@ -91,6 +144,7 @@ export class GameLoop {
 
         this.isRunning = true;
         this.lastTime = performance.now();
+        this.lastRenderTimestamp = this.lastTime;
         this.accumulatedTime = 0;
         this.perfFrameCount = 0;
         this.fpsTime = this.lastTime;
@@ -106,12 +160,13 @@ export class GameLoop {
         }
     }
 
-    public getMetrics(): { fps: number; updateMs: number; renderMs: number; droppedSteps: number } {
+    public getMetrics(): { fps: number; updateMs: number; renderMs: number; droppedSteps: number; targetFPS: number } {
         return {
             fps: this.currentFPS,
             updateMs: this.lastUpdateTime,
             renderMs: this.lastRenderTime,
             droppedSteps: this.droppedStepsLastSecond,
+            targetFPS: this.targetFPS,
         };
     }
     
@@ -120,13 +175,26 @@ export class GameLoop {
     }
     
     public getTargetFPS(): number {
-        return Math.round(1000 / this.FIXED_TIMESTEP);
+        return this.targetFPS;
+    }
+    
+    public getDetectedRefreshRate(): number {
+        return this.detectedRefreshRate;
     }
 
     private loop(timestamp: number): void {
         if (!this.isRunning) return;
         
-        // Frame skipping for low-end devices
+        // === 120Hz CAP ENFORCEMENT ===
+        // Time-based throttling to strictly enforce FPS cap
+        const timeSinceLastRender = timestamp - this.lastRenderTimestamp;
+        if (timeSinceLastRender < this.minFrameTime * 0.9) {
+            // Skip this frame - we're running too fast
+            this.animationFrameId = requestAnimationFrame(this.boundLoop);
+            return;
+        }
+        
+        // Frame skipping for low-end devices and 120Hz displays
         this.frameCount++;
         if (this.frameCount % this.frameSkip !== 0) {
             this.animationFrameId = requestAnimationFrame(this.boundLoop);
@@ -170,6 +238,7 @@ export class GameLoop {
             this.renderCallback(alpha);
         }
         this.lastRenderTime = performance.now() - renderStart;
+        this.lastRenderTimestamp = timestamp;
         
         // Adaptive quality: detect slow frames
         if (this.adaptiveQuality && this.isTouch) {
