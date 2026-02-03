@@ -23,10 +23,10 @@ export const Config = {
     // Turn rate in radians/second (0.15 * 60 = 9)
     SNAKE_MAX_TURN_RATE: 9,
     // Boost
-    BOOST_MAX_ENERGY: 220,
-    BOOST_REGEN_PER_SEC: 18,
+    BOOST_MAX_ENERGY: 360,
+    BOOST_REGEN_PER_SEC: 22,
     // Boost cost per second (0.5 * 60 = 30)
-    SNAKE_BOOST_COST: 30,
+    SNAKE_BOOST_COST: 28,
 
     // Food
     FOOD_COUNT: 500,

@@ -177,8 +177,8 @@ export class CollisionSystem {
      * Get foods inside an axis-aligned bounding box (world coordinates).
      * Used for render culling to avoid iterating every food each frame.
      */
-    public getFoodsInAABB(minX: number, minY: number, maxX: number, maxY: number): Food[] {
-        const foods: Food[] = [];
+    public getFoodsInAABBInto(minX: number, minY: number, maxX: number, maxY: number, out: Food[]): void {
+        out.length = 0;
 
         const cellMinX = this.clampCellX(Math.floor(minX / this.cellSize));
         const cellMaxX = this.clampCellX(Math.floor(maxX / this.cellSize));
@@ -191,11 +191,15 @@ export class CollisionSystem {
                 if (this.cellStamp[idx] !== this.frameStamp) continue;
                 const cell = this.cells[idx];
                 for (const f of cell.foods) {
-                    if (!f.isConsumed) foods.push(f);
+                    if (!f.isConsumed) out.push(f);
                 }
             }
         }
+    }
 
+    public getFoodsInAABB(minX: number, minY: number, maxX: number, maxY: number): Food[] {
+        const foods: Food[] = [];
+        this.getFoodsInAABBInto(minX, minY, maxX, maxY, foods);
         return foods;
     }
 

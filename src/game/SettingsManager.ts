@@ -14,6 +14,7 @@ export interface GameSettings {
     };
     graphics: {
         quality: GraphicsQuality;
+        fpsGenBeta: boolean;
         particles: boolean;
         showGrid: boolean;
         showMinimap: boolean;
@@ -58,6 +59,7 @@ const DEFAULT_SETTINGS: GameSettings = {
     },
     graphics: {
         quality: 'high',
+        fpsGenBeta: false,
         particles: true,
         showGrid: true,
         showMinimap: true,
@@ -281,6 +283,7 @@ export class SettingsManager {
                 ? (v.graphics.quality === 'low' ? 'medium' : v.graphics.quality)
                 : undefined;
         if (quality) graphics.quality = quality;
+        if (typeof v?.graphics?.fpsGenBeta === 'boolean') graphics.fpsGenBeta = v.graphics.fpsGenBeta;
         if (typeof v?.graphics?.particles === 'boolean') graphics.particles = v.graphics.particles;
         if (typeof v?.graphics?.showGrid === 'boolean') graphics.showGrid = v.graphics.showGrid;
         if (typeof v?.graphics?.showMinimap === 'boolean') graphics.showMinimap = v.graphics.showMinimap;

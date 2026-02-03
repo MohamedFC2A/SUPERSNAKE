@@ -2,6 +2,7 @@ import { t, onLocaleChange } from '../../i18n';
 import { SettingsManager, GameSettings } from '../../game/SettingsManager';
 import { setLocale } from '../../i18n';
 import { applyUpdate, checkForUpdate } from '../../update/appUpdate';
+import { purgeCachesAndReload } from '../../update/purgeCaches';
 
 /**
  * SettingsPage - Full page settings with all options
@@ -110,6 +111,7 @@ export class SettingsPage {
         setSelect('quality', settings.graphics.quality);
         setPerfButtons(settings.graphics.quality);
         // Graphics toggles are auto-driven by the performance preset for consistent FPS.
+        setCheck('fpsGenBeta', settings.graphics.fpsGenBeta);
 
         setSelect('language', settings.accessibility.language);
         setSelect('colorblindMode', settings.accessibility.colorblindMode);
@@ -357,6 +359,28 @@ export class SettingsPage {
             </div>
 
             <div class="settings-section">
+                <div class="setting-row">
+                    <span class="setting-label">${t('settings.fpsGenBeta')}</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="fpsGenBeta" ${settings.graphics.fpsGenBeta ? 'checked' : ''}>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="panel" style="margin-top: 10px;">
+                    <div class="panel-text">${t('settings.fpsGenBetaHint')}</div>
+                </div>
+                <div class="setting-row" style="margin-top: 10px;">
+                    <div>
+                        <div class="section-title">${t('settings.purgeCache')}</div>
+                        <div class="section-subtitle">${t('settings.purgeCacheHint')}</div>
+                    </div>
+                    <div class="setting-control">
+                        <button class="btn btn-secondary" id="purgeCacheBtn" type="button">${t('settings.purgeCache')}</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-section">
                 <div class="section-title" style="margin-bottom: 10px;">${t('settings.accessibility')}</div>
                 <div class="setting-row">
                     <span class="setting-label">${t('settings.language')}</span>
@@ -482,6 +506,17 @@ export class SettingsPage {
             this.updateContent();
             await applyUpdate();
         });
+
+        const purgeBtn = this.container.querySelector('#purgeCacheBtn') as HTMLButtonElement | null;
+        purgeBtn?.addEventListener('click', async () => {
+            purgeBtn.disabled = true;
+            try {
+                await purgeCachesAndReload();
+            } finally {
+                // If reload was blocked for any reason, re-enable.
+                purgeBtn.disabled = false;
+            }
+        });
     }
 
     private handleSettingChange(id: string, value: string | number | boolean): void {
@@ -535,6 +570,9 @@ export class SettingsPage {
             // Graphics
             case 'quality':
                 this.settingsManager.updateSettings({ graphics: { ...settings.graphics, quality: value as 'medium' | 'high' | 'ultra' | 'super_ultra' } });
+                break;
+            case 'fpsGenBeta':
+                this.settingsManager.updateSettings({ graphics: { ...settings.graphics, fpsGenBeta: value as boolean } });
                 break;
 
             // Accessibility

@@ -47,6 +47,7 @@ export class Game {
     // Reusable scratch arrays (avoid per-frame allocations)
     private aiNearbySnakes: Snake[] = [];
     private aiNearbyFoods: Food[] = [];
+    private visibleFoods: Food[] = [];
 
     // Player info
     private playerName: string = 'Player';
@@ -62,6 +63,7 @@ export class Game {
     private uiTheme: 'dark' | 'light' = 'dark';
     private botTargetCount: number = Config.BOT_COUNT;
     private readonly isTouchDevice: boolean;
+    private fpsGenBetaEnabled: boolean = false;
     private perfGovernor: PerformanceGovernor;
     private perfLastEvalMs: number = 0;
     private recommendedUiUpdateIntervalMs: number = 0;
@@ -98,6 +100,7 @@ export class Game {
         this.showGrid = settings.graphics.showGrid;
         this.particlesEnabled = settings.graphics.particles;
         this.uiTheme = settings.ui.theme === 'light' ? 'light' : 'dark';
+        this.fpsGenBetaEnabled = this.isTouchDevice && settings.graphics.fpsGenBeta === true;
 
         // Clean visuals: glow is disabled across all presets (Ultra explicitly requires 0 glow).
         this.glowEnabled = false;
@@ -160,6 +163,19 @@ export class Game {
         // Always bias performance on touch devices: cap DPR harder.
         if (this.isTouchDevice) {
             desiredPixelRatio = Math.min(desiredPixelRatio, this.graphicsQuality === 'ultra' || this.graphicsQuality === 'super_ultra' ? 2 : 1.5);
+        }
+
+        // FPS Gen (Beta): extreme mobile mode for maximum smoothness.
+        // This is NOT real frame generation; it simply reduces work per frame aggressively.
+        if (this.fpsGenBetaEnabled) {
+            desiredPixelRatio = 1;
+            particleIntensity = Math.min(particleIntensity, 0.35);
+            botCount = Math.min(botCount, 8);
+            foodCount = Math.min(foodCount, 200);
+            foodAnimation = false;
+            minimapVisible = false;
+            gridVisible = false;
+            this.particlesEnabled = false;
         }
 
         // Auto performance governor: base values are the ceiling, then the governor may reduce them at runtime.
@@ -420,7 +436,7 @@ export class Game {
 
         // Build collision grid
         this.collisionSystem.clear();
-        const collisionStepBots = (this.graphicsQuality === 'medium' || this.graphicsQuality === 'low') ? 2 : 1;
+        const collisionStepBots = this.fpsGenBetaEnabled ? 4 : ((this.graphicsQuality === 'medium' || this.graphicsQuality === 'low') ? 2 : 1);
         for (const snake of allSnakes) {
             if (!snake.isAlive) continue;
             const step = snake.isPlayer ? 1 : collisionStepBots;
@@ -523,7 +539,9 @@ export class Game {
         for (const snake of allSnakes) {
             if (!snake.isAlive) continue;
 
-            const otherStep = (this.graphicsQuality === 'medium' || this.graphicsQuality === 'low') && !snake.isPlayer ? 2 : 1;
+            const otherStep = this.fpsGenBetaEnabled && !snake.isPlayer
+                ? 3
+                : (((this.graphicsQuality === 'medium' || this.graphicsQuality === 'low') && !snake.isPlayer) ? 2 : 1);
             const collision = this.collisionSystem.checkSnakeCollisions(snake, allSnakes, otherStep);
             if (collision) {
                 this.killSnake(collision.victim, collision.killer);
@@ -767,15 +785,15 @@ export class Game {
             // Draw food
             const ctx = this.renderer.getContext();
             // Cull food rendering by view bounds (huge FPS win on mobile).
-            const viewMargin = 200;
+            const viewMargin = this.fpsGenBetaEnabled ? 140 : 200;
             const halfW = (this.renderer.width / this.renderer.camera.zoom) / 2;
             const halfH = (this.renderer.height / this.renderer.camera.zoom) / 2;
             const minX = Math.max(0, this.renderer.camera.position.x - halfW - viewMargin);
             const maxX = Math.min(Config.WORLD_WIDTH, this.renderer.camera.position.x + halfW + viewMargin);
             const minY = Math.max(0, this.renderer.camera.position.y - halfH - viewMargin);
             const maxY = Math.min(Config.WORLD_HEIGHT, this.renderer.camera.position.y + halfH + viewMargin);
-            const visibleFoods = this.collisionSystem.getFoodsInAABB(minX, minY, maxX, maxY);
-            for (const f of visibleFoods) {
+            this.collisionSystem.getFoodsInAABBInto(minX, minY, maxX, maxY, this.visibleFoods);
+            for (const f of this.visibleFoods) {
                 f.render(ctx, renderOptions);
             }
 
