@@ -54,6 +54,7 @@ export class Game {
     private showGrid: boolean = true;
     private particlesEnabled: boolean = true;
     private uiTheme: 'dark' | 'light' = 'dark';
+    private botTargetCount: number = Config.BOT_COUNT;
 
     constructor(canvas: HTMLCanvasElement) {
         this.canvas = canvas;
@@ -82,23 +83,40 @@ export class Game {
         const dpr = window.devicePixelRatio || 1;
         let desiredPixelRatio = 1;
         let particleIntensity = 1;
+        let botCount: number = Config.BOT_COUNT;
+        let foodCount: number = Config.FOOD_COUNT;
 
         switch (this.graphicsQuality) {
             case 'low':
-                desiredPixelRatio = 1;
-                particleIntensity = 0.35;
+                // Legacy value (treated like MED internally)
+                desiredPixelRatio = Math.min(1.25, dpr);
+                particleIntensity = 0.60;
+                botCount = 12;
+                foodCount = 420;
                 break;
             case 'medium':
-                desiredPixelRatio = Math.min(1.5, dpr);
-                particleIntensity = 0.65;
+                desiredPixelRatio = Math.min(1.25, dpr);
+                particleIntensity = 0.60;
+                botCount = 12;
+                foodCount = 420;
                 break;
             case 'high':
                 desiredPixelRatio = Math.min(2, dpr);
                 particleIntensity = 1.0;
+                botCount = Config.BOT_COUNT;
+                foodCount = Config.FOOD_COUNT;
                 break;
             case 'ultra':
-                desiredPixelRatio = Math.min(3, dpr);
+                desiredPixelRatio = Math.min(2.5, dpr);
                 particleIntensity = 1.15;
+                botCount = 16;
+                foodCount = 560;
+                break;
+            case 'super_ultra':
+                desiredPixelRatio = Math.min(3, dpr);
+                particleIntensity = 1.35;
+                botCount = 18;
+                foodCount = 650;
                 break;
         }
 
@@ -107,6 +125,32 @@ export class Game {
 
         this.particles.setEnabled(this.particlesEnabled);
         this.particles.setIntensity(particleIntensity);
+
+        this.botTargetCount = Math.max(6, Math.min(30, botCount));
+        this.foodManager.setTargetCount(foodCount);
+        this.syncBotsToTarget();
+    }
+
+    private syncBotsToTarget(): void {
+        if (!this.player) return;
+        if (this.state !== 'playing') return;
+
+        const desired = this.boss ? Math.max(4, Math.floor(this.botTargetCount / 2)) : this.botTargetCount;
+
+        // Remove extra bots (prefer farthest)
+        if (this.bots.length > desired) {
+            const sorted = [...this.bots].sort((a, b) => b.position.distance(this.player!.position) - a.position.distance(this.player!.position));
+            const toRemove = sorted.slice(0, this.bots.length - desired);
+            for (const bot of toRemove) {
+                this.aiSystem.unregisterBot(bot.id);
+                this.bots = this.bots.filter(b => b.id !== bot.id);
+            }
+        }
+
+        // Add missing bots
+        while (this.bots.length < desired) {
+            this.spawnBot();
+        }
     }
 
     public resize(logicalWidth: number = window.innerWidth, logicalHeight: number = window.innerHeight): void {
@@ -136,7 +180,7 @@ export class Game {
         this.bossSpawned = false;
 
         // Initialize world
-        this.foodManager.initialize();
+        this.foodManager.initialize(this.foodManager.getTargetCount());
         this.particles.clear();
 
         // Create player
@@ -148,7 +192,7 @@ export class Game {
 
         // Create bots
         this.bots = [];
-        for (let i = 0; i < Config.BOT_COUNT; i++) {
+        for (let i = 0; i < this.botTargetCount; i++) {
             this.spawnBot();
         }
 
@@ -413,7 +457,7 @@ export class Game {
         });
 
         // Maintain bot count (reduce count if boss is present)
-        const targetCount = this.boss ? Math.floor(Config.BOT_COUNT / 2) : Config.BOT_COUNT;
+        const targetCount = this.boss ? Math.max(4, Math.floor(this.botTargetCount / 2)) : this.botTargetCount;
         while (this.bots.length < targetCount) {
             this.spawnBot();
         }

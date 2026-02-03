@@ -1,4 +1,4 @@
-export type GraphicsQuality = 'low' | 'medium' | 'high' | 'ultra';
+export type GraphicsQuality = 'low' | 'medium' | 'high' | 'ultra' | 'super_ultra';
 
 export interface RenderOptions {
   quality: GraphicsQuality;

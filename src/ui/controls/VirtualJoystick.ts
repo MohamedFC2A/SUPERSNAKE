@@ -7,6 +7,7 @@ export interface JoystickConfig {
     position: 'left' | 'right';
     deadZone: number;
     maxRadius: number;
+    vibrate?: (pattern: number | number[]) => void;
 }
 
 export interface JoystickState {
@@ -27,6 +28,10 @@ export class VirtualJoystick {
     private magnitude: number = 0;
     private activeTouchId: number | null = null;
 
+    private boundOnTouchStart: (e: TouchEvent) => void;
+    private boundOnTouchMove: (e: TouchEvent) => void;
+    private boundOnTouchEnd: (e: TouchEvent) => void;
+
     constructor(config: Partial<JoystickConfig> = {}) {
         this.config = {
             size: 120,
@@ -41,6 +46,9 @@ export class VirtualJoystick {
         this.handle = document.createElement('div');
 
         this.render();
+        this.boundOnTouchStart = this.onTouchStart.bind(this);
+        this.boundOnTouchMove = this.onTouchMove.bind(this);
+        this.boundOnTouchEnd = this.onTouchEnd.bind(this);
         this.setupEventListeners();
     }
 
@@ -68,10 +76,10 @@ export class VirtualJoystick {
     }
 
     private setupEventListeners(): void {
-        this.container.addEventListener('touchstart', this.onTouchStart.bind(this), { passive: false });
-        window.addEventListener('touchmove', this.onTouchMove.bind(this), { passive: false });
-        window.addEventListener('touchend', this.onTouchEnd.bind(this), { passive: false });
-        window.addEventListener('touchcancel', this.onTouchEnd.bind(this), { passive: false });
+        this.container.addEventListener('touchstart', this.boundOnTouchStart, { passive: false });
+        window.addEventListener('touchmove', this.boundOnTouchMove, { passive: false });
+        window.addEventListener('touchend', this.boundOnTouchEnd, { passive: false });
+        window.addEventListener('touchcancel', this.boundOnTouchEnd, { passive: false });
     }
 
     private onTouchStart(e: TouchEvent): void {
@@ -91,9 +99,7 @@ export class VirtualJoystick {
         this.container.classList.add('active');
 
         // Haptic feedback
-        if (navigator.vibrate) {
-            navigator.vibrate(10);
-        }
+        this.config.vibrate?.(10);
     }
 
     private onTouchMove(e: TouchEvent): void {
@@ -189,6 +195,10 @@ export class VirtualJoystick {
     }
 
     destroy(): void {
+        this.container.removeEventListener('touchstart', this.boundOnTouchStart);
+        window.removeEventListener('touchmove', this.boundOnTouchMove);
+        window.removeEventListener('touchend', this.boundOnTouchEnd);
+        window.removeEventListener('touchcancel', this.boundOnTouchEnd);
         this.container.remove();
     }
 }

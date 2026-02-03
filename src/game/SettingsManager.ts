@@ -6,13 +6,14 @@ import { setLocale } from '../i18n';
 import { applyTheme, type Theme } from '../theme/theme';
 import { MathUtils } from '../utils/utils';
 import { deleteCookie, getCookie, setCookie } from '../utils/cookies';
+import type { GraphicsQuality } from './render/RenderOptions';
 
 export interface GameSettings {
     ui: {
         theme: Theme;
     };
     graphics: {
-        quality: 'low' | 'medium' | 'high' | 'ultra';
+        quality: GraphicsQuality;
         particles: boolean;
         showGrid: boolean;
         showMinimap: boolean;
@@ -113,7 +114,12 @@ export class SettingsManager {
 
     private loadSettings(): GameSettings {
         const raw = getCookie(PREFS_COOKIE);
-        if (!raw) return this.cloneSettings(DEFAULT_SETTINGS);
+        if (!raw) {
+            const derived = this.getDefaultSettingsForDevice();
+            // Persist the derived defaults so the UX is stable across refreshes.
+            this.persistDefaults(derived);
+            return derived;
+        }
 
         try {
             const json = decodeURIComponent(raw);
@@ -132,6 +138,65 @@ export class SettingsManager {
                 // ignore
             }
             return this.cloneSettings(DEFAULT_SETTINGS);
+        }
+    }
+
+    private getDefaultSettingsForDevice(): GameSettings {
+        const s = this.cloneSettings(DEFAULT_SETTINGS);
+
+        const isTouch = (() => {
+            try {
+                return (
+                    (typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches) ||
+                    'ontouchstart' in window ||
+                    navigator.maxTouchPoints > 0
+                );
+            } catch {
+                return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+            }
+        })();
+
+        const mem = (navigator as any).deviceMemory as number | undefined;
+        const cores = navigator.hardwareConcurrency as number | undefined;
+        const dpr = window.devicePixelRatio || 1;
+        const minDim = Math.min(window.innerWidth, window.innerHeight);
+
+        // Language default from browser
+        const lang = (navigator.language || '').toLowerCase();
+        s.accessibility.language = lang.startsWith('ar') ? 'ar' : 'en';
+
+        // Vibration is a mobile-only enhancement (and can be annoying on desktop).
+        s.audio.vibration = isTouch;
+
+        // Pick a "best default" performance preset for the device.
+        // Goal: great quality without stutter on typical hardware.
+        const lowEnd = (typeof mem === 'number' && mem > 0 && mem <= 4) || (typeof cores === 'number' && cores > 0 && cores <= 4) || minDim < 720;
+
+        if (isTouch) {
+            // Mobile: avoid excessive DPR (costly) on high-DPI screens.
+            s.graphics.quality = lowEnd ? 'medium' : 'high';
+            s.graphics.showMinimap = minDim >= 740;
+        } else {
+            const strong = (typeof mem === 'number' && mem >= 8) || (typeof cores === 'number' && cores >= 8);
+            // Desktop: ultra by default; super-ultra only for strong hardware and not-too-high DPR.
+            s.graphics.quality = strong && dpr >= 2 ? 'super_ultra' : 'ultra';
+            s.graphics.showMinimap = true;
+        }
+
+        return s;
+    }
+
+    private persistDefaults(settings: GameSettings): void {
+        try {
+            const payload = {
+                v: PREFS_VERSION,
+                settings,
+                updatedAt: new Date().toISOString(),
+            };
+            const value = encodeURIComponent(JSON.stringify(payload));
+            setCookie(PREFS_COOKIE, value, { maxAgeSeconds: PREFS_MAX_AGE_SECONDS, path: '/', sameSite: 'Lax' });
+        } catch {
+            // ignore
         }
     }
 
@@ -183,8 +248,12 @@ export class SettingsManager {
 
         const graphics: DeepPartial<GameSettings['graphics']> = {};
         const quality =
-            v?.graphics?.quality === 'low' || v?.graphics?.quality === 'medium' || v?.graphics?.quality === 'high' || v?.graphics?.quality === 'ultra'
-                ? v.graphics.quality
+            v?.graphics?.quality === 'low' ||
+                v?.graphics?.quality === 'medium' ||
+                v?.graphics?.quality === 'high' ||
+                v?.graphics?.quality === 'ultra' ||
+                v?.graphics?.quality === 'super_ultra'
+                ? (v.graphics.quality === 'low' ? 'medium' : v.graphics.quality)
                 : undefined;
         if (quality) graphics.quality = quality;
         if (typeof v?.graphics?.particles === 'boolean') graphics.particles = v.graphics.particles;

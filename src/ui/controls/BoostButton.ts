@@ -5,6 +5,7 @@
 export interface BoostButtonConfig {
     size: number;
     position: 'left' | 'right';
+    vibrate?: (pattern: number | number[]) => void;
 }
 
 export class BoostButton {
@@ -16,6 +17,15 @@ export class BoostButton {
     private isPressed: boolean = false;
     private chargePercent: number = 100;
     private activeTouchId: number | null = null;
+
+    private boundStartPress: ((e: Event) => void) | null = null;
+    private boundEndPress: ((e: Event) => void) | null = null;
+    private boundOnTouchStart: ((e: TouchEvent) => void) | null = null;
+    private boundOnTouchEnd: ((e: TouchEvent) => void) | null = null;
+    private boundOnTouchCancel: ((e: TouchEvent) => void) | null = null;
+    private boundOnMouseDown: ((e: MouseEvent) => void) | null = null;
+    private boundOnMouseUp: ((e: MouseEvent) => void) | null = null;
+    private boundOnMouseLeave: ((e: MouseEvent) => void) | null = null;
 
     constructor(config: Partial<BoostButtonConfig> = {}) {
         this.config = {
@@ -60,9 +70,7 @@ export class BoostButton {
             this.isPressed = true;
             this.container.classList.add('pressed');
 
-            if (navigator.vibrate) {
-                navigator.vibrate(20);
-            }
+            this.config.vibrate?.(20);
         };
 
         const endPress = (e: Event) => {
@@ -72,25 +80,36 @@ export class BoostButton {
             this.activeTouchId = null;
         };
 
-        this.button.addEventListener('touchstart', (e: TouchEvent) => {
+        this.boundStartPress = startPress;
+        this.boundEndPress = endPress;
+
+        this.boundOnTouchStart = (e: TouchEvent) => {
             if (this.activeTouchId !== null) return;
             const touch = e.changedTouches[0] ?? e.touches[0];
             if (!touch) return;
             this.activeTouchId = touch.identifier;
             startPress(e);
-        }, { passive: false });
+        };
 
-        this.button.addEventListener('touchend', (e: TouchEvent) => {
+        this.boundOnTouchEnd = (e: TouchEvent) => {
             if (this.activeTouchId === null) return;
             const ended = Array.from(e.changedTouches).some(t => t.identifier === this.activeTouchId);
             if (ended) endPress(e);
-        }, { passive: false });
+        };
 
-        this.button.addEventListener('touchcancel', endPress, { passive: false });
+        this.boundOnTouchCancel = (e: TouchEvent) => endPress(e);
 
-        this.button.addEventListener('mousedown', startPress);
-        this.button.addEventListener('mouseup', endPress);
-        this.button.addEventListener('mouseleave', endPress);
+        this.boundOnMouseDown = (e: MouseEvent) => startPress(e);
+        this.boundOnMouseUp = (e: MouseEvent) => endPress(e);
+        this.boundOnMouseLeave = (e: MouseEvent) => endPress(e);
+
+        if (this.boundOnTouchStart) this.button.addEventListener('touchstart', this.boundOnTouchStart, { passive: false });
+        if (this.boundOnTouchEnd) this.button.addEventListener('touchend', this.boundOnTouchEnd, { passive: false });
+        if (this.boundOnTouchCancel) this.button.addEventListener('touchcancel', this.boundOnTouchCancel, { passive: false });
+
+        if (this.boundOnMouseDown) this.button.addEventListener('mousedown', this.boundOnMouseDown);
+        if (this.boundOnMouseUp) this.button.addEventListener('mouseup', this.boundOnMouseUp);
+        if (this.boundOnMouseLeave) this.button.addEventListener('mouseleave', this.boundOnMouseLeave);
     }
 
     getElement(): HTMLElement {
@@ -129,6 +148,12 @@ export class BoostButton {
     }
 
     destroy(): void {
+        if (this.boundOnTouchStart) this.button.removeEventListener('touchstart', this.boundOnTouchStart);
+        if (this.boundOnTouchEnd) this.button.removeEventListener('touchend', this.boundOnTouchEnd);
+        if (this.boundOnTouchCancel) this.button.removeEventListener('touchcancel', this.boundOnTouchCancel);
+        if (this.boundOnMouseDown) this.button.removeEventListener('mousedown', this.boundOnMouseDown);
+        if (this.boundOnMouseUp) this.button.removeEventListener('mouseup', this.boundOnMouseUp);
+        if (this.boundOnMouseLeave) this.button.removeEventListener('mouseleave', this.boundOnMouseLeave);
         this.container.remove();
     }
 }

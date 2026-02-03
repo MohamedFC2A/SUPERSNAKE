@@ -84,6 +84,16 @@ export class SettingsPage {
             sel.value = value;
         };
 
+        const setPerfButtons = (value: string): void => {
+            const buttons = Array.from(this.container.querySelectorAll('[data-setting="quality"]')) as HTMLButtonElement[];
+            if (buttons.length === 0) return;
+            for (const b of buttons) {
+                const v = b.getAttribute('data-value');
+                b.classList.toggle('active', v === value);
+                b.setAttribute('aria-pressed', v === value ? 'true' : 'false');
+            }
+        };
+
         setRange('masterVolume', settings.audio.masterVolume, '%');
         setRange('sfxVolume', settings.audio.sfxVolume, '%');
         setRange('musicVolume', settings.audio.musicVolume, '%');
@@ -97,6 +107,7 @@ export class SettingsPage {
         setRange('sensitivity', settings.controls.sensitivity, '');
 
         setSelect('quality', settings.graphics.quality);
+        setPerfButtons(settings.graphics.quality);
         setCheck('particles', settings.graphics.particles);
         setCheck('showGrid', settings.graphics.showGrid);
         setCheck('showMinimap', settings.graphics.showMinimap);
@@ -329,13 +340,13 @@ export class SettingsPage {
         return `
             <div class="settings-section">
                     <div class="setting-row">
-                        <span class="setting-label">${t('settings.quality')}</span>
-                        <select class="setting-select" id="quality">
-                            <option value="low" ${settings.graphics.quality === 'low' ? 'selected' : ''}>${t('settings.low')}</option>
-                            <option value="medium" ${settings.graphics.quality === 'medium' ? 'selected' : ''}>${t('settings.medium')}</option>
-                            <option value="high" ${settings.graphics.quality === 'high' ? 'selected' : ''}>${t('settings.high')}</option>
-                            <option value="ultra" ${settings.graphics.quality === 'ultra' ? 'selected' : ''}>${t('settings.ultra')}</option>
-                        </select>
+                        <span class="setting-label">${t('settings.performance')}</span>
+                        <div class="perf-toggle" role="group" aria-label="${t('settings.performance')}">
+                            <button class="perf-btn${settings.graphics.quality === 'medium' ? ' active' : ''}" type="button" data-setting="quality" data-value="medium" aria-pressed="${settings.graphics.quality === 'medium'}">${t('settings.perfMed')}</button>
+                            <button class="perf-btn${settings.graphics.quality === 'high' ? ' active' : ''}" type="button" data-setting="quality" data-value="high" aria-pressed="${settings.graphics.quality === 'high'}">${t('settings.perfHigh')}</button>
+                            <button class="perf-btn${settings.graphics.quality === 'ultra' ? ' active' : ''}" type="button" data-setting="quality" data-value="ultra" aria-pressed="${settings.graphics.quality === 'ultra'}">${t('settings.perfUltra')}</button>
+                            <button class="perf-btn${settings.graphics.quality === 'super_ultra' ? ' active' : ''}" type="button" data-setting="quality" data-value="super_ultra" aria-pressed="${settings.graphics.quality === 'super_ultra'}">${t('settings.perfSuperUltra')}</button>
+                        </div>
                     </div>
                 <div class="setting-row">
                     <span class="setting-label">${t('settings.particles')}</span>
@@ -469,6 +480,16 @@ export class SettingsPage {
             });
         });
 
+        // Performance buttons (quality)
+        this.container.querySelectorAll('[data-setting="quality"]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const el = e.currentTarget as HTMLElement;
+                const value = el.getAttribute('data-value');
+                if (!value) return;
+                this.handleSettingChange('quality', value);
+            });
+        });
+
         const updateBtn = this.container.querySelector('#updateGameBtn') as HTMLButtonElement | null;
         updateBtn?.addEventListener('click', async () => {
             if (this.checkingUpdate) return;
@@ -523,7 +544,7 @@ export class SettingsPage {
 
             // Graphics
             case 'quality':
-                this.settingsManager.updateSettings({ graphics: { ...settings.graphics, quality: value as 'low' | 'medium' | 'high' | 'ultra' } });
+                this.settingsManager.updateSettings({ graphics: { ...settings.graphics, quality: value as 'medium' | 'high' | 'ultra' | 'super_ultra' } });
                 break;
             case 'particles':
                 this.settingsManager.updateSettings({ graphics: { ...settings.graphics, particles: value as boolean } });

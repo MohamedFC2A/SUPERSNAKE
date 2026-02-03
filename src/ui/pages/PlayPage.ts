@@ -80,6 +80,17 @@ export class PlayPage {
     private orientationBlocked: boolean = false;
     private pausedByOrientation: boolean = false;
 
+    // Haptics (mobile vibration)
+    private vibrationEnabled: boolean = true;
+    private lastVibrateMs: number = 0;
+
+    // Start screen orientation listener
+    private startScreenResizeHandler: (() => void) | null = null;
+
+    // UI update throttling for performance presets
+    private uiUpdateIntervalMs: number = 0;
+    private lastUiUpdateMs: number = 0;
+
     constructor(settingsManager: SettingsManager) {
         this.settingsManager = settingsManager;
         this.container = document.createElement('div');
@@ -103,6 +114,24 @@ export class PlayPage {
         return isRTL() ? '→' : '←';
     }
 
+    private vibrate(pattern: number | number[]): void {
+        if (!this.isTouchDevice()) return;
+        if (!this.vibrationEnabled) return;
+        if (this.orientationBlocked) return;
+        if (!('vibrate' in navigator)) return;
+        const fn = navigator.vibrate?.bind(navigator);
+        if (typeof fn !== 'function') return;
+
+        const now = performance.now();
+        if (now - this.lastVibrateMs < 45) return;
+        this.lastVibrateMs = now;
+        try {
+            fn(pattern);
+        } catch {
+            // ignore
+        }
+    }
+
     /**
      * Show the "Enter your name" start screen
      */
@@ -123,12 +152,20 @@ export class PlayPage {
         const mobile = isMobileLike();
         this.installDismissed = getCookie('supersnake_install_dismissed') === '1';
         const showInstallCard = mobile && !isStandaloneMode() && !this.installDismissed;
+        const mustRotate = this.isTouchDevice() && this.isPortrait();
 
         this.container.innerHTML = `
             <div class="play-start-screen">
                 <div class="play-start-content">
                     <h1 class="play-start-title">🐍 ${t('menu.title')}</h1>
                     <p class="play-start-subtitle">${t('menu.tagline')}</p>
+
+                    ${mustRotate ? `
+                        <div class="panel panel-warning" style="margin-bottom: 12px;">
+                            <div class="panel-title">${t('play.rotateTitle')}</div>
+                            <div class="panel-text">${t('play.rotateSubtitle')}</div>
+                        </div>
+                    ` : ''}
 
                     ${showInstallCard ? `
                         <div class="install-required-card">
@@ -152,7 +189,7 @@ export class PlayPage {
                         </div>
                     </div>
                     
-                    <button class="btn btn-primary play-start-btn" id="startGameBtn">
+                    <button class="btn btn-primary play-start-btn" id="startGameBtn" ${mustRotate ? 'disabled aria-disabled="true"' : ''}>
                         ${t('menu.play')}
                     </button>
                     
@@ -169,6 +206,21 @@ export class PlayPage {
         if (this.installOverlayVisible) {
             this.attachInstallOverlayHandlers();
         }
+
+        // Keep the rotate warning in sync while on the start screen.
+        if (this.startScreenResizeHandler) {
+            window.removeEventListener('resize', this.startScreenResizeHandler);
+            window.removeEventListener('orientationchange', this.startScreenResizeHandler);
+            this.startScreenResizeHandler = null;
+        }
+        if (!this.isGameRunning && this.isTouchDevice()) {
+            const handler = () => {
+                if (!this.isGameRunning) this.showStartScreen();
+            };
+            this.startScreenResizeHandler = handler;
+            window.addEventListener('resize', handler);
+            window.addEventListener('orientationchange', handler);
+        }
     }
 
     private setupStartScreenEvents(): void {
@@ -177,6 +229,9 @@ export class PlayPage {
         const openInstallGateBtn = this.container.querySelector('#openInstallGateBtn');
 
         startBtn?.addEventListener('click', () => {
+            // Best-effort: fullscreen + landscape lock must be triggered by a user gesture.
+            this.tryEnterFullscreen();
+            void this.tryLockLandscape();
             this.startGame(this.lastPlayerName || 'Player');
         });
 
@@ -197,6 +252,12 @@ export class PlayPage {
         if (this.isGameRunning || this.isDestroyed) return;
 
         console.log('[PlayPage] Starting game for:', playerName);
+
+        if (this.startScreenResizeHandler) {
+            window.removeEventListener('resize', this.startScreenResizeHandler);
+            window.removeEventListener('orientationchange', this.startScreenResizeHandler);
+            this.startScreenResizeHandler = null;
+        }
 
         this.isGameRunning = true;
         this.gameStartTime = Date.now();
@@ -228,10 +289,15 @@ export class PlayPage {
         this.game = new Game(this.canvas);
 
         // Apply settings (graphics quality / particles / grid) immediately and keep in sync
-        this.game.applySettings(this.settingsManager.getSettings());
+        const initialSettings = this.settingsManager.getSettings();
+        this.vibrationEnabled = !!initialSettings.audio.vibration;
+        this.uiUpdateIntervalMs = this.getUiUpdateIntervalForQuality(initialSettings.graphics.quality);
+        this.game.applySettings(initialSettings);
         this.unsubscribeSettings?.();
         this.unsubscribeSettings = this.settingsManager.subscribe((newSettings) => {
             this.game?.applySettings(newSettings);
+            this.vibrationEnabled = !!newSettings.audio.vibration;
+            this.uiUpdateIntervalMs = this.getUiUpdateIntervalForQuality(newSettings.graphics.quality);
 
             // Live-update mobile control layout
             this.mobileControlMode = newSettings.controls.mobileControlMode;
@@ -250,6 +316,7 @@ export class PlayPage {
             if (this.boostButton) {
                 this.boostButton.updateConfig({
                     position: newSettings.controls.joystickPosition === 'left' ? 'right' : 'left',
+                    vibrate: (p) => this.vibrate(p),
                 });
             }
 
@@ -264,6 +331,10 @@ export class PlayPage {
             this.mobileControlMode = this.settingsManager.getSettings().controls.mobileControlMode;
             this.initMobileControls();
         }
+
+        // Enforce landscape-only on touch devices.
+        this.initOrientationGuard();
+        this.updateOrientationGuard();
 
         // Connect external mobile controls to the game's input manager
         if (this.isTouchDevice()) {
@@ -280,8 +351,8 @@ export class PlayPage {
 
         // Play start sound
         getAudioManager().play('start');
-
-        // Portrait is allowed on mobile (no forced rotate)
+        // Small haptic tap on start (if enabled)
+        this.vibrate(12);
 
         // Start HUD update loop
         this.startUpdateLoop();
@@ -290,6 +361,34 @@ export class PlayPage {
         this.setupGameEvents();
 
         console.log('[PlayPage] Game started successfully!');
+    }
+
+    private getUiUpdateIntervalForQuality(quality: string): number {
+        // Lower presets throttle HUD/minimap updates for real FPS gains on low-end devices.
+        switch (quality) {
+            case 'medium':
+            case 'low':
+                return 120;
+            case 'high':
+                return 70;
+            default:
+                return 0; // every frame
+        }
+    }
+
+    private tryEnterFullscreen(): void {
+        try {
+            if (!this.isTouchDevice()) return;
+            if (document.fullscreenElement) return;
+            const el: any = document.documentElement;
+            const fn: any = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+            if (typeof fn === 'function') {
+                const p = fn.call(el);
+                if (p && typeof p.catch === 'function') p.catch(() => { });
+            }
+        } catch {
+            // ignore
+        }
     }
 
     private handleResize = (): void => {
@@ -509,9 +608,14 @@ export class PlayPage {
                     this.syncMobileControls();
 
                     if (!this.game.paused) {
-                        this.updateHUD();
-                        this.updateLeaderboard();
-                        this.updateMiniMap();
+                        const now = performance.now();
+                        const shouldUpdateUi = this.uiUpdateIntervalMs <= 0 || (now - this.lastUiUpdateMs >= this.uiUpdateIntervalMs);
+                        if (shouldUpdateUi) {
+                            this.lastUiUpdateMs = now;
+                            this.updateHUD();
+                            this.updateLeaderboard();
+                            this.updateMiniMap();
+                        }
                         this.updateBossUI();
                     } else {
                         this.updateBossUI();
@@ -631,6 +735,7 @@ export class PlayPage {
             position: settings.controls.joystickPosition,
             deadZone: Math.max(8, Math.round(settings.controls.joystickSize * 0.07)),
             maxRadius: Math.max(44, Math.round(settings.controls.joystickSize * 0.42)),
+            vibrate: (p) => this.vibrate(p),
         });
         uiLayer.appendChild(this.joystick.getElement());
         this.joystick.show();
@@ -638,6 +743,7 @@ export class PlayPage {
         this.boostButton = new BoostButton({
             position: settings.controls.joystickPosition === 'left' ? 'right' : 'left',
             size: 80,
+            vibrate: (p) => this.vibrate(p),
         });
         uiLayer.appendChild(this.boostButton.getElement());
         this.boostButton.show();
@@ -657,6 +763,7 @@ export class PlayPage {
             if (now - this.lastTapMs < 280) {
                 this.boostLocked = !this.boostLocked;
                 this.lastTapMs = 0;
+                this.vibrate(this.boostLocked ? 16 : 10);
             } else {
                 this.lastTapMs = now;
             }
@@ -833,42 +940,62 @@ export class PlayPage {
 
         // Play death sound
         getAudioManager().play('death');
+        this.vibrate([18, 70, 28]);
 
         // Show game over screen
         this.showGameOverScreen(score, survivalTime);
     }
 
     private showGameOverScreen(score: number, survivalTime: number): void {
-        const killedBy = this.game?.getLastKiller() || 'Unknown';
+        const killedByRaw = this.game?.getLastKiller() || 'Unknown';
+        const killedBy = this.escapeHtml(killedByRaw);
         const highScore = this.game?.getHighScore() || 0;
-        const isNewHighScore = score > highScore && score > 0;
+        const isNewHighScore = score > 0 && score === highScore;
+        const perf = this.game?.getPerformanceMetrics();
+        const fps = perf?.fps ?? 0;
+        const updateMs = perf?.updateTime ?? 0;
+        const renderMs = perf?.renderTime ?? 0;
 
         const survivalStr = this.formatTime(survivalTime);
 
         this.container.innerHTML = `
             <div class="play-gameover-screen">
                 <div class="play-gameover-content">
-                    <h1 class="play-gameover-title">${t('gameOver.title')}</h1>
-                    ${isNewHighScore ? `<p class="play-gameover-highscore">🏆 ${t('gameOver.newHighScore')}</p>` : ''}
-                    
-                    <div class="play-gameover-stats">
-                        <div class="play-gameover-stat">
-                            <span class="play-gameover-stat-label">${t('gameOver.finalScore')}</span>
-                            <span class="play-gameover-stat-value">${score}</span>
+                    <div class="play-gameover-badge">${t('gameOver.title')}</div>
+                    ${isNewHighScore ? `<div class="play-gameover-highscore">🏆 ${t('gameOver.newHighScore')}</div>` : ''}
+
+                    <div class="play-gameover-cards">
+                        <div class="play-gameover-card primary">
+                            <div class="play-gameover-card-label">${t('gameOver.finalScore')}</div>
+                            <div class="play-gameover-card-value">${score}</div>
                         </div>
-                        <div class="play-gameover-stat">
-                            <span class="play-gameover-stat-label">${t('gameOver.survivalTime')}</span>
-                            <span class="play-gameover-stat-value">${survivalStr}</span>
+                        <div class="play-gameover-card">
+                            <div class="play-gameover-card-label">${t('gameOver.highScore')}</div>
+                            <div class="play-gameover-card-value">${highScore}</div>
                         </div>
-                        <div class="play-gameover-stat">
-                            <span class="play-gameover-stat-label">${t('gameOver.killedBy')}</span>
-                            <span class="play-gameover-stat-value">${killedBy}</span>
+                        <div class="play-gameover-card">
+                            <div class="play-gameover-card-label">${t('gameOver.survivalTime')}</div>
+                            <div class="play-gameover-card-value">${survivalStr}</div>
+                        </div>
+                        <div class="play-gameover-card">
+                            <div class="play-gameover-card-label">${t('gameOver.fps')}</div>
+                            <div class="play-gameover-card-value">${fps} <span class="play-gameover-card-sub">(${updateMs.toFixed(1)}ms / ${renderMs.toFixed(1)}ms)</span></div>
                         </div>
                     </div>
-                    
+
+                    <div class="play-gameover-meta">
+                        <div class="play-gameover-meta-row">
+                            <span class="play-gameover-meta-label">${t('gameOver.killedBy')}</span>
+                            <span class="play-gameover-meta-value">${killedBy}</span>
+                        </div>
+                    </div>
+
                     <div class="play-gameover-actions">
-                        <button class="btn btn-primary" id="playAgainBtn">${t('gameOver.playAgain')}</button>
-                        <button class="btn btn-secondary" id="mainMenuBtn">${t('gameOver.mainMenu')}</button>
+                        <button class="btn btn-primary" id="playAgainBtn" type="button">${t('gameOver.playAgain')}</button>
+                        <div class="play-gameover-actions-row">
+                            <button class="btn btn-secondary" id="settingsBtn" type="button">${t('nav.settings')}</button>
+                            <button class="btn btn-secondary" id="mainMenuBtn" type="button">${t('gameOver.mainMenu')}</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -878,7 +1005,14 @@ export class PlayPage {
 
         // Setup events
         this.container.querySelector('#playAgainBtn')?.addEventListener('click', () => {
+            this.tryEnterFullscreen();
+            void this.tryLockLandscape();
             this.startGame(this.lastPlayerName || 'Player');
+        });
+
+        this.container.querySelector('#settingsBtn')?.addEventListener('click', () => {
+            this.cleanup();
+            getRouter().navigate('/settings');
         });
 
         this.container.querySelector('#mainMenuBtn')?.addEventListener('click', () => {
@@ -917,6 +1051,11 @@ export class PlayPage {
         window.removeEventListener('keydown', this.handleKeyDown);
         window.removeEventListener('orientationchange', this.updateOrientationGuard);
         window.removeEventListener('resize', this.updateOrientationGuard);
+        if (this.startScreenResizeHandler) {
+            window.removeEventListener('resize', this.startScreenResizeHandler);
+            window.removeEventListener('orientationchange', this.startScreenResizeHandler);
+            this.startScreenResizeHandler = null;
+        }
 
         // Record stats if game was active
         if (this.game && this.game.state === 'playing' && this.isGameRunning) {

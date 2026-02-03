@@ -141,13 +141,50 @@ export class FoodManager {
     private foodPool: Food[] = [];
     private nextId: number = 0;
     private activeCache: Food[] | null = null;
+    private targetCount: number = Config.FOOD_COUNT;
 
     /**
      * Initialize with starting food
      */
-    public initialize(): void {
-        for (let i = 0; i < Config.FOOD_COUNT; i++) {
+    public initialize(targetCount: number = this.targetCount): void {
+        this.setTargetCount(targetCount);
+        while (this.foods.size < this.targetCount) {
             this.spawnFood();
+        }
+    }
+
+    public setTargetCount(count: number): void {
+        const next = Math.max(120, Math.min(1200, Math.floor(Number.isFinite(count) ? count : Config.FOOD_COUNT)));
+        if (this.targetCount === next) return;
+        this.targetCount = next;
+        this.trimToTarget();
+        this.activeCache = null;
+    }
+
+    public getTargetCount(): number {
+        return this.targetCount;
+    }
+
+    private trimToTarget(): void {
+        if (this.foods.size <= this.targetCount) return;
+
+        // Prefer removing normal/rare/power food; keep speed-boost drops.
+        const removable: string[] = [];
+        const speedBoost: string[] = [];
+        this.foods.forEach((food, id) => {
+            if (food.type === 'speed_boost') speedBoost.push(id);
+            else removable.push(id);
+        });
+
+        let idx = 0;
+        while (this.foods.size > this.targetCount && idx < removable.length) {
+            this.foods.delete(removable[idx++]);
+        }
+
+        // If we're still above target (only speed_boost remains), trim anyway.
+        idx = 0;
+        while (this.foods.size > this.targetCount && idx < speedBoost.length) {
+            this.foods.delete(speedBoost[idx++]);
         }
     }
 
@@ -206,9 +243,13 @@ export class FoodManager {
             this.activeCache = null;
         }
 
-        // Maintain minimum food count
-        while (this.foods.size < Config.FOOD_COUNT) {
+        // Maintain target food count (and trim if too many).
+        while (this.foods.size < this.targetCount) {
             this.spawnFood();
+        }
+        if (this.foods.size > this.targetCount) {
+            this.trimToTarget();
+            this.activeCache = null;
         }
     }
 
