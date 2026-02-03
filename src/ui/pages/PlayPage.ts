@@ -306,6 +306,9 @@ export class PlayPage {
         console.log('[PlayPage] Creating game instance...');
         this.game = new Game(this.canvas);
 
+        // Connect vibration callback for haptic feedback
+        this.game.onVibrate = (pattern) => this.vibrate(pattern);
+
         // Apply settings (graphics quality / particles / grid) immediately and keep in sync
         const initialSettings = this.settingsManager.getSettings();
         this.vibrationEnabled = !!initialSettings.audio.vibration;

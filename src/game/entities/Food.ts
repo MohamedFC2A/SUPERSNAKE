@@ -2,7 +2,7 @@ import { Vector2, Random } from '../../utils/utils';
 import { Config } from '../../config';
 import type { RenderOptions } from '../render/RenderOptions';
 
-export type FoodType = 'normal' | 'rare' | 'power' | 'speed_boost' | 'infinite_boost';
+export type FoodType = 'normal' | 'rare' | 'power' | 'speed_boost' | 'infinite_boost' | 'death';
 
 /**
  * Food - Consumable items that grow snakes
@@ -48,6 +48,18 @@ export class Food {
                 this.radius = Math.max(Config.BOSS_DROP_RADIUS * 2.6, 28);
                 this.value = 0;
                 this.color = Config.COLORS.NEON_GREEN;
+                break;
+            case 'death':
+                // Dropped from dead snakes - shiny, appetizing golden/warm colors
+                this.radius = Random.float(Config.FOOD_SIZE_MAX * 0.9, Config.FOOD_SIZE_MAX * 1.4);
+                this.value = Config.FOOD_VALUE_RARE;
+                this.color = Random.choice([
+                    '#FFD700', // Gold
+                    '#FFA500', // Orange
+                    '#FF6B6B', // Coral red
+                    '#FFE66D', // Bright yellow
+                    '#4ECDC4', // Teal
+                ]);
                 break;
             default:
                 this.radius = Random.float(Config.FOOD_SIZE_MIN, Config.FOOD_SIZE_MAX);
@@ -154,6 +166,46 @@ export class Food {
             ctx.beginPath();
             ctx.arc(this.position.x, this.position.y, Math.max(4, this.radius * 0.35), 0, Math.PI * 2);
             ctx.fill();
+        } else if (this.type === 'death') {
+            // Shiny death drop with sparkle effect
+            if (glowEnabled) {
+                ctx.shadowColor = this.color;
+                ctx.shadowBlur = 16;
+            }
+
+            // Outer sparkle ring (pulsing)
+            const sparkleAlpha = 0.3 + Math.sin(this.pulsePhase * 2) * 0.2;
+            ctx.strokeStyle = `rgba(255, 255, 255, ${sparkleAlpha})`;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(this.position.x, this.position.y, this.radius * 1.4, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Inner bright core
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+            ctx.beginPath();
+            ctx.arc(
+                this.position.x - this.radius * 0.15,
+                this.position.y - this.radius * 0.15,
+                this.radius * 0.35,
+                0,
+                Math.PI * 2
+            );
+            ctx.fill();
+
+            // Mini sparkle dots
+            const dotAngle = this.pulsePhase * 1.5;
+            for (let i = 0; i < 3; i++) {
+                const angle = dotAngle + (i * Math.PI * 2 / 3);
+                const dist = this.radius * 1.6;
+                const dotX = this.position.x + Math.cos(angle) * dist;
+                const dotY = this.position.y + Math.sin(angle) * dist;
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+                ctx.beginPath();
+                ctx.arc(dotX, dotY, 1.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
         }
     }
 }
@@ -251,12 +303,12 @@ export class FoodManager {
     }
 
     /**
-     * Spawn food from dead snake
+     * Spawn food from dead snake - uses special 'death' type with shiny visuals
      */
     public spawnFromDeath(positions: Vector2[], amount: number): void {
         for (let i = 0; i < Math.min(amount, positions.length); i++) {
             const pos = positions[i].add(Random.inCircle(20));
-            this.spawnFood(pos);
+            this.spawnFood(pos, 'death');
         }
     }
 

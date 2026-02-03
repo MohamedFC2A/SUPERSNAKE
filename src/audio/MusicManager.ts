@@ -147,12 +147,53 @@ export class MusicManager {
         if (!this.audio || !this.isEnabled) return;
 
         // Resume audio context if needed (mobile unlock)
-        this.audio.play().catch(() => {
-            // Autoplay blocked - will play on next user interaction
-        });
+        const tryPlay = () => {
+            if (!this.audio) return;
+            this.audio.play().then(() => {
+                // Successfully started - remove any pending unlock listeners
+                this.removeUnlockListeners();
+            }).catch(() => {
+                // Autoplay blocked - add unlock listeners for user interaction
+                this.addUnlockListeners();
+            });
+        };
+
+        tryPlay();
 
         // Start the volume animation loop
         this.startVolumeLoop();
+    }
+
+    // Autoplay unlock listeners
+    private unlockHandler: (() => void) | null = null;
+
+    private addUnlockListeners(): void {
+        if (this.unlockHandler) return; // Already added
+
+        this.unlockHandler = () => {
+            if (!this.audio || !this.isEnabled) return;
+            this.audio.play().then(() => {
+                this.removeUnlockListeners();
+            }).catch(() => {
+                // Still blocked, keep listeners
+            });
+        };
+
+        // Add listeners for common user interaction events
+        const events = ['touchstart', 'touchend', 'click', 'keydown'];
+        events.forEach(event => {
+            document.addEventListener(event, this.unlockHandler!, { once: false, passive: true });
+        });
+    }
+
+    private removeUnlockListeners(): void {
+        if (!this.unlockHandler) return;
+
+        const events = ['touchstart', 'touchend', 'click', 'keydown'];
+        events.forEach(event => {
+            document.removeEventListener(event, this.unlockHandler!);
+        });
+        this.unlockHandler = null;
     }
 
     /**

@@ -78,6 +78,9 @@ export class Game {
     private recommendedUiUpdateIntervalMs: number = 0;
     private fpsManager: FPSManager | null = null;
 
+    // Vibration callback for food eating (set by PlayPage)
+    public onVibrate: ((pattern: number | number[]) => void) | null = null;
+
     constructor(canvas: HTMLCanvasElement) {
         this.canvas = canvas;
         this.renderer = new Renderer(canvas);
@@ -573,13 +576,24 @@ export class Game {
                 // Boss drop: speed only (no huge growth)
                 this.player.activateSpeedBoost(Config.BOSS_DROP_BOOST_DURATION, Config.BOSS_DROP_BOOST_MULTIPLIER);
                 getAudioManager().play('levelUp');
+                // Stronger vibration for power-ups
+                this.onVibrate?.([8, 30, 8]);
             } else if (food.type === 'infinite_boost') {
                 // NONO reward: infinite boost (no energy drain).
                 this.player.activateInfiniteBoost();
                 getAudioManager().play('levelUp', { volume: 1.0, pitchVariance: 0.02 });
+                // Satisfying double-pulse for big reward
+                this.onVibrate?.([10, 40, 10, 40, 10]);
+            } else if (food.type === 'death') {
+                // Death drops are juicy - slightly stronger feedback
+                this.player.grow(food.value);
+                getAudioManager().play('collect');
+                this.onVibrate?.(6);
             } else {
                 this.player.grow(food.value);
                 getAudioManager().play('collect');
+                // Light, snappy vibration for normal food
+                this.onVibrate?.(4);
             }
             if (this.particlesEnabled) {
                 this.particles.foodConsumed(food.position, food.color);
