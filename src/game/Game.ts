@@ -13,6 +13,7 @@ import { getAudioManager, getMusicManager } from '../audio';
 import type { GameSettings } from './SettingsManager';
 import type { GraphicsQuality, RenderOptions } from './render/RenderOptions';
 import { PerformanceGovernor } from './PerformanceGovernor';
+import { getFPSManager, FPSManager, detectDeviceProfile } from './FPSManager';
 
 const BOT_NAMES = [
     'Viper', 'Cobra', 'Python', 'Mamba', 'Anaconda',
@@ -67,6 +68,7 @@ export class Game {
     private perfGovernor: PerformanceGovernor;
     private perfLastEvalMs: number = 0;
     private recommendedUiUpdateIntervalMs: number = 0;
+    private fpsManager: FPSManager | null = null;
 
     constructor(canvas: HTMLCanvasElement) {
         this.canvas = canvas;
@@ -263,6 +265,20 @@ export class Game {
         this.fateSpawned = false;
         this.nonoSpawned = false;
 
+        // Initialize FPS Manager with auto-detection
+        if (!this.fpsManager) {
+            this.fpsManager = getFPSManager({
+                showCounter: this.isTouchDevice,
+                adaptiveQuality: true,
+            });
+            this.fpsManager.start();
+            
+            // Apply FPS Gen Pro settings
+            if (this.fpsGenBetaEnabled) {
+                this.fpsManager.applySettings(this);
+            }
+        }
+
         // Initialize world
         this.foodManager.initialize(this.foodManager.getTargetCount());
         this.particles.clear();
@@ -328,6 +344,10 @@ export class Game {
         this.player = null;
         this.bots = [];
         this.isPaused = false;
+        
+        // Stop FPS Manager
+        this.fpsManager?.stop();
+        this.fpsManager = null;
     }
 
     /**
@@ -875,6 +895,10 @@ export class Game {
 
     public getInput(): InputManager {
         return this.input;
+    }
+
+    public getFPSManager(): FPSManager | null {
+        return this.fpsManager;
     }
 
     /**

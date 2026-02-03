@@ -2,6 +2,20 @@
  * Performance utilities for mobile optimization
  */
 
+export function isLowEndDevice(): boolean {
+    const memory = (navigator as any).deviceMemory;
+    const cores = navigator.hardwareConcurrency;
+    
+    if (memory && memory <= 3) return true;
+    if (cores && cores <= 4) return true;
+    
+    const ua = navigator.userAgent;
+    if (/Android [4-8]\./.test(ua)) return true;
+    if (/iPhone OS (10|11|12|13)_/.test(ua)) return true;
+    
+    return false;
+}
+
 export interface DeviceCapabilities {
     isTouch: boolean;
     isLowEnd: boolean;
