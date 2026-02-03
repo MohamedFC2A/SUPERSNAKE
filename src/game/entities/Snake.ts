@@ -35,6 +35,7 @@ export class Snake {
     public boostEnergy: number = 100;
     public speedBoostTimer: number = 0;
     public speedBoostMultiplier: number = Config.SPEED_BOOST_MULTIPLIER;
+    public infiniteBoost: boolean = false;
 
     // AI (bots only)
     public aiLevel: 1 | 2 | 3 = 1;
@@ -42,6 +43,11 @@ export class Snake {
     public activateSpeedBoost(duration: number, multiplier: number = Config.SPEED_BOOST_MULTIPLIER): void {
         this.speedBoostTimer = duration;
         this.speedBoostMultiplier = multiplier;
+    }
+
+    public activateInfiniteBoost(): void {
+        this.infiniteBoost = true;
+        this.boostEnergy = 100;
     }
 
     // Appearance
@@ -115,7 +121,7 @@ export class Snake {
      * Set boost state
      */
     public setBoost(active: boolean): void {
-        if (active && this.boostEnergy > 0) {
+        if (active && (this.infiniteBoost || this.boostEnergy > 0)) {
             this.isBoosting = true;
         } else {
             this.isBoosting = false;
@@ -132,6 +138,11 @@ export class Snake {
         if (!this.isAlive) return;
 
         const dtSec = dt / 1000;
+
+        if (this.infiniteBoost) {
+            // Keep the HUD charge full and avoid any drift from other logic.
+            this.boostEnergy = 100;
+        }
 
         // Turn towards target direction
         const targetAngle = Math.atan2(this.targetDirection.y, this.targetDirection.x);
@@ -162,20 +173,26 @@ export class Snake {
             }
         }
 
-        if (this.isBoosting && this.boostEnergy > 0) {
+        if (this.isBoosting && (this.infiniteBoost || this.boostEnergy > 0)) {
             currentSpeed = Config.SNAKE_BOOST_SPEED; // Boost overrides normal speed, maybe stack?
             if (this.speedBoostTimer > 0) {
                 currentSpeed *= this.speedBoostMultiplier; // Stack logic
             }
-            this.boostEnergy -= Config.SNAKE_BOOST_COST * dtSec;
+            if (!this.infiniteBoost) {
+                this.boostEnergy -= Config.SNAKE_BOOST_COST * dtSec;
 
-            // Lose mass while boosting (approx 6 times per second)
-            if (this.segments.length > 5 && Random.bool(6 * dtSec)) {
-                this.shrink(1);
+                // Lose mass while boosting (approx 6 times per second)
+                if (this.segments.length > 5 && Random.bool(6 * dtSec)) {
+                    this.shrink(1);
+                }
             }
         } else {
-            // Regenerate boost energy (approx 12 per second)
-            this.boostEnergy = Math.min(100, this.boostEnergy + 12 * dtSec);
+            if (!this.infiniteBoost) {
+                // Regenerate boost energy (approx 12 per second)
+                this.boostEnergy = Math.min(100, this.boostEnergy + 12 * dtSec);
+            } else {
+                this.boostEnergy = 100;
+            }
         }
 
         // Move head

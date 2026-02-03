@@ -425,6 +425,10 @@ export class Game {
                 // Boss drop: speed only (no huge growth)
                 this.player.activateSpeedBoost(Config.BOSS_DROP_BOOST_DURATION, Config.BOSS_DROP_BOOST_MULTIPLIER);
                 getAudioManager().play('levelUp');
+            } else if (food.type === 'infinite_boost') {
+                // NONO reward: infinite boost (no energy drain).
+                this.player.activateInfiniteBoost();
+                getAudioManager().play('levelUp', { volume: 1.0, pitchVariance: 0.02 });
             } else {
                 this.player.grow(food.value);
                 getAudioManager().play('collect');
@@ -440,7 +444,7 @@ export class Game {
 
             const botFood = this.collisionSystem.checkFoodCollisions(bot);
             for (const food of botFood) {
-                if (food.type === 'speed_boost') continue;
+                if (food.type === 'speed_boost' || food.type === 'infinite_boost') continue;
                 food.consume();
                 bot.grow(food.value);
             }
@@ -449,7 +453,7 @@ export class Game {
         // Boss eats food (especially NONO). This is intentionally quiet.
         if (this.boss && this.boss.isAlive) {
             const bossHead = this.boss.getHead();
-            const bossRadius = this.boss.getHeadRadius();
+            const bossRadius = this.boss.getHeadRadius() * (this.boss.kind === 'NONO' ? 1.6 : 1.0);
             const bossFood = this.collisionSystem.checkCircleFoodCollisions(bossHead, bossRadius);
             for (const food of bossFood) {
                 food.consume();
@@ -556,11 +560,13 @@ export class Game {
             this.particles.emit(this.boss.position, '#ff2a2a', 45, 5.5, 7, 70);
         }
 
-        // Spawn a small speed-boost pickup
-        this.foodManager.spawnFood(this.boss.position, 'speed_boost');
+        // Spawn boss reward pickup
         if (this.boss.kind === 'NONO') {
-            // Reward for the harder boss.
-            this.foodManager.spawnFood(this.boss.position.add(Random.inCircle(40)), 'speed_boost');
+            // Big green infinite-boost drop
+            this.foodManager.spawnFood(this.boss.position, 'infinite_boost');
+        } else {
+            // Small speed-boost pickup
+            this.foodManager.spawnFood(this.boss.position, 'speed_boost');
         }
 
         this.boss = null;
@@ -583,9 +589,17 @@ export class Game {
 
             // Fast path: head-to-head touch
             if (snakeHead.distance(bossHead) < snakeHeadRadius + bossHeadRadius) {
-                this.killSnake(snake, null);
-                if (this.particlesEnabled) {
-                    this.particles.deathExplosion(snakeHead, snake.palette.primary);
+                if (this.boss.kind === 'NONO') {
+                    // NONO is non-lethal: gently push the snake out of overlap.
+                    const delta = snakeHead.subtract(bossHead);
+                    const dir = delta.magnitude() > 0 ? delta.normalize() : snake.direction;
+                    snake.position = bossHead.add(dir.multiply(snakeHeadRadius + bossHeadRadius + 6));
+                    snake.velocity = Vector2.zero();
+                } else {
+                    this.killSnake(snake, null);
+                    if (this.particlesEnabled) {
+                        this.particles.deathExplosion(snakeHead, snake.palette.primary);
+                    }
                 }
                 continue;
             }
@@ -600,7 +614,7 @@ export class Game {
                     const canDamageBoss = snake.isPlayer && snake.isBoosting && i >= tailHitStart;
                     if (canDamageBoss) {
                         this.boss.takeDamage(1);
-                        snake.boostEnergy = Math.max(0, snake.boostEnergy - 35);
+                        if (!snake.infiniteBoost) snake.boostEnergy = Math.max(0, snake.boostEnergy - 35);
                         if (snake.segments.length > 6) snake.shrink(1);
                         // Push the player slightly away to avoid repeated hits in the same spot.
                         snake.position = snake.position.add(snake.direction.multiply(-Math.max(20, snakeHeadRadius * 1.8)));
@@ -611,9 +625,17 @@ export class Game {
                         }
                         getAudioManager().play('bossTick', { volume: 0.7, pitchVariance: 0.0, cooldownMs: 120 });
                     } else {
-                        this.killSnake(snake, null);
-                        if (this.particlesEnabled) {
-                            this.particles.deathExplosion(snakeHead, snake.palette.primary);
+                        if (this.boss.kind === 'NONO') {
+                            // NONO is non-lethal: push away so touch controls don't "freeze" in a death loop.
+                            const delta = snakeHead.subtract(seg.position);
+                            const dir = delta.magnitude() > 0 ? delta.normalize() : snake.direction;
+                            snake.position = seg.position.add(dir.multiply(snakeHeadRadius + seg.radius + 6));
+                            snake.velocity = Vector2.zero();
+                        } else {
+                            this.killSnake(snake, null);
+                            if (this.particlesEnabled) {
+                                this.particles.deathExplosion(snakeHead, snake.palette.primary);
+                            }
                         }
                     }
                     break;
@@ -624,6 +646,7 @@ export class Game {
 
             // Boss head touching snake body (also kills snake)
             // Avoid scanning long snakes unless they are nearby.
+            if (this.boss.kind === 'NONO') continue;
             const closeEnough = snakeHead.distance(bossHead) < bossHeadRadius + 250;
             if (!closeEnough) continue;
 

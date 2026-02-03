@@ -2,7 +2,7 @@ import { Vector2, Random } from '../../utils/utils';
 import { Config } from '../../config';
 import type { RenderOptions } from '../render/RenderOptions';
 
-export type FoodType = 'normal' | 'rare' | 'power' | 'speed_boost';
+export type FoodType = 'normal' | 'rare' | 'power' | 'speed_boost' | 'infinite_boost';
 
 /**
  * Food - Consumable items that grow snakes
@@ -42,6 +42,12 @@ export class Food {
                 this.radius = Config.BOSS_DROP_RADIUS;
                 this.value = 0;
                 this.color = Config.COLORS.BOSS_EYE;
+                break;
+            case 'infinite_boost':
+                // NONO reward: big green pickup (effect handled by game logic)
+                this.radius = Math.max(Config.BOSS_DROP_RADIUS * 2.6, 28);
+                this.value = 0;
+                this.color = Config.COLORS.NEON_GREEN;
                 break;
             default:
                 this.radius = Random.float(Config.FOOD_SIZE_MIN, Config.FOOD_SIZE_MAX);
@@ -129,6 +135,25 @@ export class Food {
             ctx.arc(this.position.x, this.position.y, Math.max(2, this.radius * 0.45), 0, Math.PI * 2);
             ctx.fill();
             ctx.shadowBlur = 0;
+        } else if (this.type === 'infinite_boost') {
+            // Readable "big reward" ring + core
+            if (glowEnabled) {
+                ctx.shadowColor = this.color;
+                ctx.shadowBlur = 18;
+            } else {
+                ctx.shadowBlur = 0;
+            }
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
+            ctx.lineWidth = Math.max(2, this.radius * 0.12);
+            ctx.beginPath();
+            ctx.arc(this.position.x, this.position.y, this.radius * 1.12, 0, Math.PI * 2);
+            ctx.stroke();
+
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+            ctx.beginPath();
+            ctx.arc(this.position.x, this.position.y, Math.max(4, this.radius * 0.35), 0, Math.PI * 2);
+            ctx.fill();
         }
     }
 }
@@ -173,11 +198,11 @@ export class FoodManager {
     private trimToTarget(): void {
         if (this.foods.size <= this.targetCount) return;
 
-        // Prefer removing normal/rare/power food; keep speed-boost drops.
+        // Prefer removing normal/rare/power food; keep boss drops.
         const removable: string[] = [];
-        const speedBoost: string[] = [];
+        const drops: string[] = [];
         this.foods.forEach((food, id) => {
-            if (food.type === 'speed_boost') speedBoost.push(id);
+            if (food.type === 'speed_boost' || food.type === 'infinite_boost') drops.push(id);
             else removable.push(id);
         });
 
@@ -186,10 +211,10 @@ export class FoodManager {
             this.foods.delete(removable[idx++]);
         }
 
-        // If we're still above target (only speed_boost remains), trim anyway.
+        // If we're still above target (only drops remain), trim anyway.
         idx = 0;
-        while (this.foods.size > this.targetCount && idx < speedBoost.length) {
-            this.foods.delete(speedBoost[idx++]);
+        while (this.foods.size > this.targetCount && idx < drops.length) {
+            this.foods.delete(drops[idx++]);
         }
     }
 
